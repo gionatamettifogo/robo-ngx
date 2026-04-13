@@ -20,6 +20,8 @@ import { StoragePathListComponent } from './components/manage/storage-path-list/
 import { TagListComponent } from './components/manage/tag-list/tag-list.component'
 import { WorkflowsComponent } from './components/manage/workflows/workflows.component'
 import { NotFoundComponent } from './components/not-found/not-found.component'
+import { AgentsComponent } from './components/robo/agents/agents.component'
+import { ChatsComponent } from './components/robo/chats/chats.component'
 import { DirtyDocGuard } from './guards/dirty-doc.guard'
 import { DirtyFormGuard } from './guards/dirty-form.guard'
 import { DirtySavedViewGuard } from './guards/dirty-saved-view.guard'
@@ -41,6 +43,21 @@ export const routes: Routes = [
         component: DashboardComponent,
         data: {
           componentName: 'AppFrameComponent',
+        },
+      },
+      // ROBO: custom sidebar destinations kept isolated for easier upstream merges.
+      {
+        path: 'chats',
+        component: ChatsComponent,
+        data: {
+          componentName: 'ChatsComponent',
+        },
+      },
+      {
+        path: 'agents',
+        component: AgentsComponent,
+        data: {
+          componentName: 'AgentsComponent',
         },
       },
       {

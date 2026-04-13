@@ -168,6 +168,29 @@
         </div>
 
         <div class="nav-group mt-3 mb-1">
+          <!-- ROBO: custom sidebar group kept separate to reduce upstream merge conflicts. -->
+          <h6 class="sidebar-heading px-3 text-muted">
+            <span>AI</span>
+          </h6>
+          <ul class="nav flex-column mb-2">
+            <li class="nav-item app-link">
+              <a class="nav-link" routerLink="chats" routerLinkActive="active" (click)="closeMenu()"
+                ngbPopover="Chats" [disablePopover]="!slimSidebarEnabled" placement="end"
+                container="body" triggers="mouseenter:mouseleave" popoverClass="popover-slim">
+                <i-bs class="me-1" name="chat-left-text"></i-bs><span>&nbsp;<ng-container>Chats</ng-container></span>
+              </a>
+            </li>
+            <li class="nav-item app-link">
+              <a class="nav-link" routerLink="agents" routerLinkActive="active" (click)="closeMenu()"
+                ngbPopover="Agents" [disablePopover]="!slimSidebarEnabled" placement="end"
+                container="body" triggers="mouseenter:mouseleave" popoverClass="popover-slim">
+                <i-bs class="me-1" name="diagram-3"></i-bs><span>&nbsp;<ng-container>Agents</ng-container></span>
+              </a>
+            </li>
+          </ul>
+        </div>
+
+        <div class="nav-group mt-3 mb-1">
           <h6 class="sidebar-heading px-3 text-muted">
             <span i18n>Manage</span>
           </h6>
