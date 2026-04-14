@@ -28,6 +28,31 @@
           {{ message.created_at | date: 'medium' }} • {{ message.status }}
         </small>
       </div>
+
+      <div
+        *ngIf="
+          statusPillsForMessage(message, state.thinkingByMessageId[message.id])
+            .length
+        "
+        class="robo-status-strip mt-2"
+      >
+        <span
+          *ngFor="
+            let pill of statusPillsForMessage(
+              message,
+              state.thinkingByMessageId[message.id]
+            )
+          "
+          class="robo-status-pill"
+          [class.robo-status-pill--info]="pill.tone === 'info'"
+          [class.robo-status-pill--muted]="pill.tone === 'muted'"
+          [class.robo-status-pill--success]="pill.tone === 'success'"
+          [class.robo-status-pill--danger]="pill.tone === 'danger'"
+        >
+          {{ pill.label }}
+        </span>
+      </div>
+
       <div class="mt-1" style="white-space: pre-wrap">{{ message.content }}</div>
 
       <div *ngIf="message.tool_calls?.length" class="mt-2">

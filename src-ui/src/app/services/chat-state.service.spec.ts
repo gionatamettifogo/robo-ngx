@@ -98,6 +98,54 @@ describe('ChatStateService', () => {
     expect(service.snapshot.activeStream).toBeNull()
   })
 
+  it('tracks thinking text and tool call lifecycle on streamed assistant messages', () => {
+    service.applyStreamEvent(
+      {
+        type: 'message_created',
+        chatId: 1,
+        userMessageId: 10,
+        assistantMessageId: 11,
+        runId: 'run_1',
+      },
+      'hello'
+    )
+
+    service.applyStreamEvent({
+      type: 'thinking_delta',
+      messageId: 11,
+      text: 'Need to search.',
+    })
+    service.applyStreamEvent({
+      type: 'tool_call_started',
+      messageId: 11,
+      toolCallId: 'tool_1',
+      toolName: 'search_documents',
+    })
+    service.applyStreamEvent({
+      type: 'tool_call_delta',
+      messageId: 11,
+      toolCallId: 'tool_1',
+      argumentsText: '{"query":"invoice"}',
+    })
+    service.applyStreamEvent({
+      type: 'tool_result',
+      messageId: 11,
+      toolCallId: 'tool_1',
+      output: { hits: 3 },
+    })
+
+    expect(service.snapshot.thinkingByMessageId[11]).toEqual('Need to search.')
+    expect(service.snapshot.messages[1].tool_calls).toEqual([
+      expect.objectContaining({
+        tool_call_id: 'tool_1',
+        tool_name: 'search_documents',
+        arguments_text: '{"query":"invoice"}',
+        output_text: '{"hits":3}',
+        status: 'completed',
+      }),
+    ])
+  })
+
   it('aborts and clears the active stream state', () => {
     service['patchState']({
       activeStream: {

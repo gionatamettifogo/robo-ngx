@@ -41,6 +41,12 @@ export interface ChatMessage extends ObjectWithId {
   tool_calls?: ChatToolCall[]
 }
 
+export interface ChatMessageStatusPill {
+  key: string
+  label: string
+  tone: 'info' | 'muted' | 'success' | 'danger'
+}
+
 export type ChatStreamEvent =
   | {
       type: 'message_created'
