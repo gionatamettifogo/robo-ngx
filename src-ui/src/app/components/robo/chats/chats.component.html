@@ -1,43 +1,142 @@
-<div class="container-fluid p-3">
-  <div class="d-flex justify-content-between align-items-center mb-3">
-    <div>
-      <h2 class="mb-0">Chats</h2>
-      <small class="text-muted">Stored in Paperless and resumed by chat id.</small>
+<div class="robo-chats-page">
+  <header class="robo-page-header">
+    <div class="robo-page-brand fw-semibold small">indena-legal</div>
+    <button class="robo-icon-button" type="button" disabled aria-label="More options">
+      <i-bs name="three-dots"></i-bs>
+    </button>
+  </header>
+
+  <div class="robo-page-title h3 mb-4 text-center">How can I help you today?</div>
+
+  <section class="robo-composer">
+    <div class="robo-composer-shell">
+      <div class="robo-composer-left">
+        <button
+          class="robo-composer-affordance"
+          type="button"
+          aria-label="Add attachment"
+        >
+          <i-bs name="plus"></i-bs>
+        </button>
+      </div>
+
+      <div class="robo-composer-input-wrap">
+        <textarea
+          class="robo-composer-textarea"
+          [ngModel]="prompt"
+          (ngModelChange)="prompt = $event"
+          (input)="autoResizeComposer($event)"
+          (keydown)="onComposerKeydown($event)"
+          [disabled]="creating"
+          placeholder="Ask anything"
+          rows="1"
+        ></textarea>
+      </div>
+
+      <div class="robo-composer-right ms-auto">
+        <button class="robo-composer-affordance" type="button" aria-label="Voice input">
+          <i-bs name="mic"></i-bs>
+        </button>
+        <button
+          class="robo-send-button"
+          type="button"
+          (click)="createChat()"
+          [disabled]="creating || !prompt.trim()"
+          aria-label="Send message"
+        >
+          <i-bs name="arrow-up-circle-fill"></i-bs>
+        </button>
+      </div>
     </div>
+  </section>
+
+  <div class="robo-tabs">
     <button
-      class="btn btn-primary"
+      class="robo-tab"
       type="button"
-      (click)="createChat()"
-      [disabled]="creating"
+      [ngClass]="{ active: activeTab === 'chats' }"
+      (click)="activeTab = 'chats'"
     >
-      New chat
+      Chats
+    </button>
+    <button
+      class="robo-tab"
+      type="button"
+      [ngClass]="{ active: activeTab === 'sources' }"
+      disabled
+    >
+      Sources
     </button>
   </div>
 
-  <div *ngIf="loading" class="text-muted">Loading chats...</div>
+  <div *ngIf="loading" class="robo-loading-state text-body-secondary">Loading chats...</div>
 
-  <div *ngIf="!loading && chats.length === 0" class="text-muted">
+  <div *ngIf="!loading && chatItems.length === 0" class="robo-empty-state text-body-secondary">
     No chats yet.
   </div>
 
-  <div class="list-group" *ngIf="!loading && chats.length > 0">
-    <a
-      *ngFor="let chat of chats"
-      class="list-group-item list-group-item-action"
-      [routerLink]="['/chats', chat.id]"
+  <section class="robo-chat-list" *ngIf="!loading && chatItems.length > 0">
+    <div
+      class="robo-chat-row"
+      *ngFor="let item of chatItems; trackBy: trackByChatId"
+      (click)="openChat(item.chat.id)"
     >
-      <div class="d-flex justify-content-between align-items-start">
-        <div>
-          <div class="fw-semibold">{{ chat.title }}</div>
-          <small class="text-muted">
-            Agent: {{ chat.agent_id }}<span *ngIf="chat.archived"> • archived</span
-            ><span *ngIf="chat.pinned"> • pinned</span>
-          </small>
+      <div class="robo-chat-main">
+        <div class="robo-chat-title fw-semibold">
+          {{ item.chat.title }}
         </div>
-        <small class="text-muted">
-          {{ (chat.last_message_at || chat.created_at) | date: 'medium' }}
-        </small>
+        <div class="robo-chat-preview small text-body-secondary">
+          {{ lastMessagePreview(item) }}
+        </div>
       </div>
-    </a>
-  </div>
+
+      <div
+        class="robo-chat-meta"
+        [ngClass]="{ 'robo-chat-meta--menu-open': openMenuChatId === item.chat.id }"
+      >
+        <div
+          ngbDropdown
+          class="robo-chat-menu"
+          container="body"
+          (openChange)="setMenuOpen(item.chat.id, $event)"
+        >
+          <button
+            class="robo-icon-button"
+            type="button"
+            ngbDropdownToggle
+            aria-label="Chat actions"
+            (click)="$event.stopPropagation()"
+          >
+            <i-bs name="three-dots"></i-bs>
+          </button>
+          <div ngbDropdownMenu class="shadow">
+            <button
+              ngbDropdownItem
+              type="button"
+              (click)="renameChat(item.chat, $event)"
+            >
+              Rename
+            </button>
+            <button
+              ngbDropdownItem
+              type="button"
+              (click)="togglePinned(item.chat, $event)"
+            >
+              {{ item.chat.pinned ? 'Unpin' : 'Pin' }}
+            </button>
+            <button
+              ngbDropdownItem
+              type="button"
+              class="text-danger"
+              (click)="deleteChat(item.chat, $event)"
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+
+        <div class="robo-chat-time small text-body-secondary">{{ lastMessageTime(item) }}</div>
+      </div>
+    </div>
+  </section>
 </div>

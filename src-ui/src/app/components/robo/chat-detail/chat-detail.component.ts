@@ -1,7 +1,7 @@
 import { AsyncPipe, DatePipe, NgFor, NgIf } from '@angular/common'
 import { Component, inject, OnDestroy, OnInit } from '@angular/core'
 import { FormsModule } from '@angular/forms'
-import { ActivatedRoute, RouterLink } from '@angular/router'
+import { ActivatedRoute, Router, RouterLink } from '@angular/router'
 import { Subject, takeUntil } from 'rxjs'
 import { ChatMessage, ChatMessageStatusPill } from 'src/app/data/chat'
 import { ChatStateService } from 'src/app/services/chat-state.service'
@@ -52,7 +52,9 @@ import { ChatStateService } from 'src/app/services/chat-state.service'
 })
 export class ChatDetailComponent implements OnInit, OnDestroy {
   private route = inject(ActivatedRoute)
+  private router = inject(Router)
   private destroy$ = new Subject<void>()
+  private initialPromptHandledForChatId: number | null = null
 
   readonly chatState = inject(ChatStateService)
 
@@ -60,7 +62,7 @@ export class ChatDetailComponent implements OnInit, OnDestroy {
     this.route.paramMap.pipe(takeUntil(this.destroy$)).subscribe((params) => {
       const chatId = Number(params.get('id'))
       if (Number.isFinite(chatId)) {
-        void this.chatState.loadChat(chatId)
+        void this.loadChat(chatId)
       }
     })
   }
@@ -73,6 +75,11 @@ export class ChatDetailComponent implements OnInit, OnDestroy {
 
   async sendMessage() {
     await this.chatState.sendMessage(this.chatState.snapshot.pendingInput)
+  }
+
+  private async loadChat(chatId: number): Promise<void> {
+    await this.chatState.loadChat(chatId)
+    await this.sendInitialPromptIfNeeded(chatId)
   }
 
   statusPillsForMessage(
@@ -118,5 +125,33 @@ export class ChatDetailComponent implements OnInit, OnDestroy {
       return 'danger'
     }
     return 'info'
+  }
+
+  private async sendInitialPromptIfNeeded(chatId: number): Promise<void> {
+    const state =
+      this.router.getCurrentNavigation()?.extras.state ?? window.history.state
+    const initialPrompt =
+      typeof state?.initialPrompt === 'string' ? state.initialPrompt.trim() : ''
+
+    if (!initialPrompt) {
+      return
+    }
+
+    if (this.initialPromptHandledForChatId === chatId) {
+      return
+    }
+
+    if (this.chatState.snapshot.messages.length > 0) {
+      return
+    }
+
+    this.initialPromptHandledForChatId = chatId
+    this.chatState.setPendingInput(initialPrompt)
+    await this.chatState.sendMessage(initialPrompt)
+
+    const nextState = { ...window.history.state }
+    delete nextState.initialPrompt
+    delete nextState.thinkingMode
+    window.history.replaceState(nextState, '')
   }
 }
