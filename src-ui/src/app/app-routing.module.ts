@@ -22,6 +22,7 @@ import { WorkflowsComponent } from './components/manage/workflows/workflows.comp
 import { NotFoundComponent } from './components/not-found/not-found.component'
 import { AgentsComponent } from './components/robo/agents/agents.component'
 import { ChatsComponent } from './components/robo/chats/chats.component'
+import { SkillsComponent } from './components/robo/skills/skills.component'
 import { DirtyDocGuard } from './guards/dirty-doc.guard'
 import { DirtyFormGuard } from './guards/dirty-form.guard'
 import { DirtySavedViewGuard } from './guards/dirty-saved-view.guard'
@@ -51,6 +52,13 @@ export const routes: Routes = [
         component: ChatsComponent,
         data: {
           componentName: 'ChatsComponent',
+        },
+      },
+      {
+        path: 'skills',
+        component: SkillsComponent,
+        data: {
+          componentName: 'SkillsComponent',
         },
       },
       {
