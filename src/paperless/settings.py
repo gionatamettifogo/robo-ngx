@@ -289,6 +289,11 @@ MODEL_FILE = __get_path(
     DATA_DIR / "classification_model.pickle",
 )
 
+# ROBO settings for AI chats and agents
+AI_API_URL = os.getenv("PAPERLESS_AI_API_URL", "http://127.0.0.1:8000/v1")
+AI_API_KEY = os.getenv("PAPERLESS_AI_API_KEY", "")
+AI_MODEL = os.getenv("PAPERLESS_AI_MODEL", "default")
+
 LOGGING_DIR = __get_path("PAPERLESS_LOGGING_DIR", DATA_DIR / "log")
 
 CONSUMPTION_DIR = __get_path(
@@ -599,10 +604,13 @@ CORS_ALLOWED_ORIGINS = __get_list(
 if DEBUG:
     # Allow access from the angular development server during debugging
     CORS_ALLOWED_ORIGINS.append("http://localhost:4200")
+    CSRF_TRUSTED_ORIGINS.append("http://localhost:4200")
 
 CORS_EXPOSE_HEADERS = [
     "Content-Disposition",
 ]
+
+CORS_ALLOW_CREDENTIALS = True
 
 ALLOWED_HOSTS = __get_list("PAPERLESS_ALLOWED_HOSTS", ["*"])
 if ALLOWED_HOSTS != ["*"]:

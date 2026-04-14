@@ -501,6 +501,154 @@ class SavedView(ModelWithOwner):
         return f"SavedView {self.name}"
 
 
+class Chat(models.Model):
+    owner = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="chats",
+        verbose_name=_("owner"),
+    )
+
+    title = models.CharField(_("title"), max_length=255, default="New chat")
+    archived = models.BooleanField(_("archived"), default=False)
+    pinned = models.BooleanField(_("pinned"), default=False)
+    created_at = models.DateTimeField(
+        _("created at"),
+        default=timezone.now,
+        db_index=True,
+    )
+    updated_at = models.DateTimeField(_("updated at"), auto_now=True)
+    last_message_at = models.DateTimeField(
+        _("last message at"),
+        blank=True,
+        null=True,
+        db_index=True,
+    )
+    document = models.ForeignKey(
+        Document,
+        blank=True,
+        null=True,
+        related_name="chats",
+        on_delete=models.SET_NULL,
+        verbose_name=_("document"),
+    )
+    agent_id = models.CharField(_("agent id"), max_length=255, default="default")
+
+    class Meta:
+        ordering = ("-pinned", "-last_message_at", "-created_at")
+        verbose_name = _("chat")
+        verbose_name_plural = _("chats")
+
+    def __str__(self):
+        return self.title
+
+
+class ChatMessage(models.Model):
+    class Role(models.TextChoices):
+        USER = ("user", _("User"))
+        ASSISTANT = ("assistant", _("Assistant"))
+        SYSTEM = ("system", _("System"))
+        TOOL = ("tool", _("Tool"))
+
+    class Status(models.TextChoices):
+        PENDING = ("pending", _("Pending"))
+        STREAMING = ("streaming", _("Streaming"))
+        COMPLETED = ("completed", _("Completed"))
+        FAILED = ("failed", _("Failed"))
+
+    chat = models.ForeignKey(
+        Chat,
+        on_delete=models.CASCADE,
+        related_name="messages",
+        verbose_name=_("chat"),
+    )
+    role = models.CharField(_("role"), max_length=16, choices=Role.choices)
+    status = models.CharField(_("status"), max_length=16, choices=Status.choices)
+    content = models.TextField(_("content"), blank=True, default="")
+    created_at = models.DateTimeField(
+        _("created at"),
+        default=timezone.now,
+        db_index=True,
+    )
+    updated_at = models.DateTimeField(_("updated at"), auto_now=True)
+    model = models.CharField(_("model"), max_length=255, blank=True, null=True)
+    run_id = models.CharField(
+        _("run id"),
+        max_length=255,
+        blank=True,
+        null=True,
+    )
+    error_code = models.CharField(
+        _("error code"),
+        max_length=255,
+        blank=True,
+        null=True,
+    )
+    error_message = models.TextField(_("error message"), blank=True, null=True)
+    input_tokens = models.PositiveIntegerField(
+        _("input tokens"),
+        blank=True,
+        null=True,
+    )
+    output_tokens = models.PositiveIntegerField(
+        _("output tokens"),
+        blank=True,
+        null=True,
+    )
+    total_tokens = models.PositiveIntegerField(
+        _("total tokens"),
+        blank=True,
+        null=True,
+    )
+
+    class Meta:
+        ordering = ("created_at", "id")
+        verbose_name = _("chat message")
+        verbose_name_plural = _("chat messages")
+        indexes = [
+            models.Index(fields=["chat", "created_at"]),
+            models.Index(fields=["run_id"]),
+            models.Index(fields=["status"]),
+        ]
+
+    def __str__(self):
+        return f"{self.role} message {self.pk}"
+
+
+class ChatToolCall(models.Model):
+    class Status(models.TextChoices):
+        STARTED = ("started", _("Started"))
+        COMPLETED = ("completed", _("Completed"))
+        FAILED = ("failed", _("Failed"))
+
+    message = models.ForeignKey(
+        ChatMessage,
+        on_delete=models.CASCADE,
+        related_name="tool_calls",
+        verbose_name=_("message"),
+    )
+    tool_call_id = models.CharField(_("tool call id"), max_length=255)
+    tool_name = models.CharField(_("tool name"), max_length=255)
+    arguments_text = models.TextField(_("arguments text"), blank=True, default="")
+    output_text = models.TextField(_("output text"), blank=True, default="")
+    status = models.CharField(_("status"), max_length=16, choices=Status.choices)
+    created_at = models.DateTimeField(_("created at"), default=timezone.now)
+    updated_at = models.DateTimeField(_("updated at"), auto_now=True)
+
+    class Meta:
+        verbose_name = _("chat tool call")
+        verbose_name_plural = _("chat tool calls")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["message", "tool_call_id"],
+                name="documents_chattoolcall_message_tool_call_unique",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.tool_name} ({self.tool_call_id})"
+
+
 class SavedViewFilterRule(models.Model):
     RULE_TYPES = [
         (0, _("title contains")),
@@ -973,6 +1121,9 @@ if settings.AUDIT_LOG_ENABLED:
     auditlog.register(Correspondent)
     auditlog.register(Tag)
     auditlog.register(DocumentType)
+    auditlog.register(Chat)
+    auditlog.register(ChatMessage)
+    auditlog.register(ChatToolCall)
     auditlog.register(Note)
     auditlog.register(CustomField)
     auditlog.register(CustomFieldInstance)

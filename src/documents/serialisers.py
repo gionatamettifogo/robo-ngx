@@ -52,6 +52,9 @@ if settings.AUDIT_LOG_ENABLED:
 from documents import bulk_edit
 from documents.data_models import DocumentSource
 from documents.filters import CustomFieldQueryParser
+from documents.models import Chat
+from documents.models import ChatMessage
+from documents.models import ChatToolCall
 from documents.models import Correspondent
 from documents.models import CustomField
 from documents.models import CustomFieldInstance
@@ -2765,6 +2768,140 @@ class WorkflowSerializer(serializers.ModelSerializer):
             context=self.context,
         ).data
         return data
+
+
+class ChatToolCallSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ChatToolCall
+        fields = (
+            "id",
+            "tool_call_id",
+            "tool_name",
+            "arguments_text",
+            "output_text",
+            "status",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = fields
+
+
+class ChatSerializer(OwnedObjectSerializer):
+    document = serializers.PrimaryKeyRelatedField(read_only=True)
+
+    class Meta:
+        model = Chat
+        fields = (
+            "id",
+            "title",
+            "archived",
+            "pinned",
+            "agent_id",
+            "document",
+            "created_at",
+            "updated_at",
+            "last_message_at",
+            "permissions",
+            "user_can_change",
+            "is_shared_by_requester",
+        )
+        read_only_fields = (
+            "id",
+            "created_at",
+            "updated_at",
+            "last_message_at",
+            "permissions",
+            "user_can_change",
+            "is_shared_by_requester",
+        )
+
+
+class ChatCreateSerializer(SerializerWithPerms, serializers.ModelSerializer):
+    document_id = serializers.PrimaryKeyRelatedField(
+        source="document",
+        queryset=Document.objects.none(),
+        required=False,
+        allow_null=True,
+    )
+
+    class Meta:
+        model = Chat
+        fields = ("title", "document_id", "agent_id")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.user is not None and self.user.is_authenticated:
+            self.fields["document_id"].queryset = get_objects_for_user_owner_aware(
+                self.user,
+                "documents.view_document",
+                Document,
+            )
+
+
+class ChatPatchSerializer(SerializerWithPerms, serializers.ModelSerializer):
+    class Meta:
+        model = Chat
+        fields = ("title", "archived", "pinned", "agent_id")
+
+
+class ChatMessageSerializer(serializers.ModelSerializer):
+    tool_calls = ChatToolCallSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = ChatMessage
+        fields = (
+            "id",
+            "chat",
+            "role",
+            "status",
+            "content",
+            "created_at",
+            "updated_at",
+            "model",
+            "run_id",
+            "error_code",
+            "error_message",
+            "input_tokens",
+            "output_tokens",
+            "total_tokens",
+            "tool_calls",
+        )
+        read_only_fields = fields
+
+
+class ChatStreamRequestSerializer(SerializerWithPerms, serializers.Serializer):
+    content = serializers.CharField(required=True)
+    document_ids = serializers.ListField(
+        required=False,
+        allow_empty=True,
+        child=serializers.IntegerField(min_value=1),
+    )
+    agent_id = serializers.CharField(required=False, allow_blank=False)
+    include_thinking = serializers.BooleanField(required=False, default=False)
+
+    def validate_content(self, value):
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError("Content must not be empty.")
+        return value
+
+    def validate_document_ids(self, value):
+        if not value:
+            return []
+        allowed_ids = set(
+            get_objects_for_user_owner_aware(
+                self.user,
+                "documents.view_document",
+                Document,
+            )
+            .filter(id__in=value)
+            .values_list("id", flat=True),
+        )
+        if len(allowed_ids) != len(set(value)):
+            raise serializers.ValidationError(
+                "Some referenced documents are not accessible.",
+            )
+        return value
 
 
 class TrashSerializer(SerializerWithPerms):

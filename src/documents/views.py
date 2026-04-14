@@ -1,4 +1,5 @@
 import itertools
+import json
 import logging
 import os
 import platform
@@ -29,9 +30,11 @@ from django.db.migrations.loader import MigrationLoader
 from django.db.migrations.recorder import MigrationRecorder
 from django.db.models import Case
 from django.db.models import Count
+from django.db.models import F
 from django.db.models import IntegerField
 from django.db.models import Max
 from django.db.models import Model
+from django.db.models import OrderBy
 from django.db.models import Sum
 from django.db.models import When
 from django.db.models.functions import Length
@@ -44,6 +47,7 @@ from django.http import HttpResponseBadRequest
 from django.http import HttpResponseForbidden
 from django.http import HttpResponseRedirect
 from django.http import HttpResponseServerError
+from django.http import StreamingHttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.decorators import method_decorator
@@ -98,6 +102,7 @@ from documents.caching import refresh_metadata_cache
 from documents.caching import refresh_suggestions_cache
 from documents.caching import set_metadata_cache
 from documents.caching import set_suggestions_cache
+from documents.chat_streaming import stream_chat_message
 from documents.classifier import load_classifier
 from documents.conditionals import metadata_etag
 from documents.conditionals import metadata_last_modified
@@ -127,6 +132,7 @@ from documents.matching import match_correspondents
 from documents.matching import match_document_types
 from documents.matching import match_storage_paths
 from documents.matching import match_tags
+from documents.models import Chat
 from documents.models import Correspondent
 from documents.models import CustomField
 from documents.models import CustomFieldInstance
@@ -159,6 +165,11 @@ from documents.serialisers import AcknowledgeTasksViewSerializer
 from documents.serialisers import BulkDownloadSerializer
 from documents.serialisers import BulkEditObjectsSerializer
 from documents.serialisers import BulkEditSerializer
+from documents.serialisers import ChatCreateSerializer
+from documents.serialisers import ChatMessageSerializer
+from documents.serialisers import ChatPatchSerializer
+from documents.serialisers import ChatSerializer
+from documents.serialisers import ChatStreamRequestSerializer
 from documents.serialisers import CorrespondentSerializer
 from documents.serialisers import CustomFieldSerializer
 from documents.serialisers import DocumentListSerializer
@@ -1550,6 +1561,88 @@ class SavedViewViewSet(ModelViewSet, PassUserMixin):
 
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)
+
+
+class ChatViewSet(ModelViewSet, PassUserMixin):
+    model = Chat
+    queryset = Chat.objects.all()
+    serializer_class = ChatSerializer
+    pagination_class = StandardPagination
+    permission_classes = (IsAuthenticated, PaperlessObjectPermissions)
+    http_method_names = ["get", "post", "patch", "head", "options"]
+
+    def get_queryset(self):
+        return (
+            Chat.objects.filter(owner=self.request.user)
+            .select_related("document")
+            .order_by(
+                "-pinned",
+                OrderBy(F("last_message_at"), descending=True, nulls_last=True),
+                "-created_at",
+            )
+        )
+
+    def get_serializer_class(self):
+        if self.action == "create":
+            return ChatCreateSerializer
+        if self.action in {"partial_update", "update"}:
+            return ChatPatchSerializer
+        return ChatSerializer
+
+    def get_serializer(self, *args, **kwargs):
+        kwargs.setdefault("user", self.request.user)
+        return super().get_serializer(*args, **kwargs)
+
+    def perform_create(self, serializer):
+        serializer.save(owner=self.request.user)
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data, user=request.user)
+        serializer.is_valid(raise_exception=True)
+        chat = serializer.save(owner=request.user)
+        response_serializer = ChatSerializer(chat, user=request.user)
+        return Response(response_serializer.data, status=201)
+
+    @action(detail=True, methods=["get"])
+    def messages(self, request, pk=None):
+        chat = self.get_object()
+        messages = chat.messages.prefetch_related("tool_calls").order_by(
+            "created_at",
+            "id",
+        )
+        serializer = ChatMessageSerializer(messages, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=["post"], url_path="messages/stream")
+    def stream(self, request, pk=None):
+        chat = self.get_object()
+        serializer = ChatStreamRequestSerializer(data=request.data, user=request.user)
+        serializer.is_valid(raise_exception=True)
+
+        validated = serializer.validated_data
+        agent_id = validated.get("agent_id", "") or chat.agent_id or "default"
+
+        def event_iter():
+            for event in stream_chat_message(
+                user=request.user,
+                chat=chat,
+                content=validated["content"],
+                document_ids=validated.get("document_ids", []),
+                agent_id=agent_id,
+                include_thinking=validated.get("include_thinking", False),
+            ):
+                yield json.dumps(event, ensure_ascii=False) + "\n"
+
+        response = StreamingHttpResponse(
+            streaming_content=event_iter(),
+            content_type="application/x-ndjson",
+        )
+        response["Cache-Control"] = "no-cache"
+        response["X-Accel-Buffering"] = "no"
+        # Compression middleware buffered NDJSON chunks in the browser path.
+        # Mark this response as identity-encoded so the stream flushes progressively.
+        response["Content-Encoding"] = "identity"
+        return response
 
 
 @extend_schema_view(

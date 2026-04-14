@@ -1,4 +1,43 @@
 <div class="container-fluid p-3">
-  <!-- ROBO: placeholder page intentionally kept minimal. -->
-  <p>Chats coming soon.</p>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h2 class="mb-0">Chats</h2>
+      <small class="text-muted">Stored in Paperless and resumed by chat id.</small>
+    </div>
+    <button
+      class="btn btn-primary"
+      type="button"
+      (click)="createChat()"
+      [disabled]="creating"
+    >
+      New chat
+    </button>
+  </div>
+
+  <div *ngIf="loading" class="text-muted">Loading chats...</div>
+
+  <div *ngIf="!loading && chats.length === 0" class="text-muted">
+    No chats yet.
+  </div>
+
+  <div class="list-group" *ngIf="!loading && chats.length > 0">
+    <a
+      *ngFor="let chat of chats"
+      class="list-group-item list-group-item-action"
+      [routerLink]="['/chats', chat.id]"
+    >
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <div class="fw-semibold">{{ chat.title }}</div>
+          <small class="text-muted">
+            Agent: {{ chat.agent_id }}<span *ngIf="chat.archived"> • archived</span
+            ><span *ngIf="chat.pinned"> • pinned</span>
+          </small>
+        </div>
+        <small class="text-muted">
+          {{ (chat.last_message_at || chat.created_at) | date: 'medium' }}
+        </small>
+      </div>
+    </a>
+  </div>
 </div>

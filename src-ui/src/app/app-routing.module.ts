@@ -21,6 +21,7 @@ import { TagListComponent } from './components/manage/tag-list/tag-list.componen
 import { WorkflowsComponent } from './components/manage/workflows/workflows.component'
 import { NotFoundComponent } from './components/not-found/not-found.component'
 import { AgentsComponent } from './components/robo/agents/agents.component'
+import { ChatDetailComponent } from './components/robo/chat-detail/chat-detail.component'
 import { ChatsComponent } from './components/robo/chats/chats.component'
 import { SkillsComponent } from './components/robo/skills/skills.component'
 import { DirtyDocGuard } from './guards/dirty-doc.guard'
@@ -52,6 +53,13 @@ export const routes: Routes = [
         component: ChatsComponent,
         data: {
           componentName: 'ChatsComponent',
+        },
+      },
+      {
+        path: 'chats/:id',
+        component: ChatDetailComponent,
+        data: {
+          componentName: 'ChatDetailComponent',
         },
       },
       {
