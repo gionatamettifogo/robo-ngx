@@ -221,43 +221,70 @@ class AgentClient:
     ) -> list[dict[str, Any]]:
         events: list[dict[str, Any]] = []
         tool_calls = delta.get("tool_calls") or []
-        if not isinstance(tool_calls, list):
-            return events
-
-        for tool_call in tool_calls:
-            if not isinstance(tool_call, dict):
-                continue
-            index = tool_call.get("index", 0)
-            tracked = state["tool_calls"].setdefault(
-                index,
-                {"started": False, "tool_call_id": None, "tool_name": None},
-            )
-            function = tool_call.get("function") or {}
-            tool_call_id = (
-                tool_call.get("id") or tracked["tool_call_id"] or f"call_{index}"
-            )
-            tool_name = function.get("name") or tracked["tool_name"] or "tool"
-            tracked["tool_call_id"] = tool_call_id
-            tracked["tool_name"] = tool_name
-
-            if not tracked["started"]:
-                tracked["started"] = True
-                events.append(
-                    {
-                        "type": "tool_call_started",
-                        "tool_call_id": tool_call_id,
-                        "tool_name": tool_name,
-                    },
+        if isinstance(tool_calls, list):
+            for tool_call in tool_calls:
+                if not isinstance(tool_call, dict):
+                    continue
+                index = tool_call.get("index", 0)
+                tracked = state["tool_calls"].setdefault(
+                    index,
+                    {"started": False, "tool_call_id": None, "tool_name": None},
                 )
-
-            arguments = function.get("arguments")
-            if isinstance(arguments, str) and arguments:
-                events.append(
-                    {
-                        "type": "tool_call_delta",
-                        "tool_call_id": tool_call_id,
-                        "arguments_text": arguments,
-                    },
+                function = tool_call.get("function") or {}
+                tool_call_id = (
+                    tool_call.get("id") or tracked["tool_call_id"] or f"call_{index}"
                 )
+                tool_name = function.get("name") or tracked["tool_name"] or "tool"
+                tracked["tool_call_id"] = tool_call_id
+                tracked["tool_name"] = tool_name
+
+                if not tracked["started"]:
+                    tracked["started"] = True
+                    events.append(
+                        {
+                            "type": "tool_call_started",
+                            "tool_call_id": tool_call_id,
+                            "tool_name": tool_name,
+                        },
+                    )
+
+                arguments = function.get("arguments")
+                if isinstance(arguments, str) and arguments:
+                    events.append(
+                        {
+                            "type": "tool_call_delta",
+                            "tool_call_id": tool_call_id,
+                            "arguments_text": arguments,
+                        },
+                    )
+
+        tool_results = delta.get("tool_results") or []
+        if isinstance(tool_results, list):
+            for tool_result in tool_results:
+                if not isinstance(tool_result, dict):
+                    continue
+                tool_call_id = tool_result.get("id")
+                if not isinstance(tool_call_id, str) or not tool_call_id:
+                    continue
+
+                tool_name = tool_result.get("name")
+                if isinstance(tool_name, str) and tool_name:
+                    for tracked in state["tool_calls"].values():
+                        if tracked.get("tool_call_id") == tool_call_id:
+                            tracked["tool_name"] = tool_name
+                            break
+
+                event: dict[str, Any] = {
+                    "type": "tool_result",
+                    "tool_call_id": tool_call_id,
+                }
+                if isinstance(tool_name, str) and tool_name:
+                    event["tool_name"] = tool_name
+                status = tool_result.get("status")
+                if isinstance(status, str) and status:
+                    event["status"] = status
+                if "output" in tool_result:
+                    event["output"] = tool_result.get("output")
+                events.append(event)
 
         return events

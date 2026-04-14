@@ -163,11 +163,11 @@ export class ChatStateService {
         }))
         break
       case 'tool_result':
-        this.updateToolCall(event.messageId, event.toolCallId, (toolCall) => ({
-          ...toolCall,
+        this.updateOrCreateToolCall(event.messageId, event.toolCallId, {
+          tool_name: event.toolName ?? 'tool',
           output_text: JSON.stringify(event.output),
-          status: 'completed',
-        }))
+          status: event.status ?? 'completed',
+        })
         break
       case 'message_completed':
         this.updateMessage(event.messageId, (message) => ({
@@ -276,6 +276,52 @@ export class ChatStateService {
         toolCall.tool_call_id === toolCallId ? updater(toolCall) : toolCall
       ),
     }))
+  }
+
+  private updateOrCreateToolCall(
+    messageId: number,
+    toolCallId: string,
+    patch: Partial<ChatToolCall> & Pick<ChatToolCall, 'tool_name'>
+  ) {
+    let found = false
+
+    this.updateMessage(messageId, (message) => {
+      const nextToolCalls = (message.tool_calls ?? []).map((toolCall) => {
+        if (toolCall.tool_call_id !== toolCallId) {
+          return toolCall
+        }
+        found = true
+        return {
+          ...toolCall,
+          ...patch,
+          updated_at: new Date().toISOString(),
+        }
+      })
+
+      if (found) {
+        return {
+          ...message,
+          tool_calls: nextToolCalls,
+        }
+      }
+
+      return {
+        ...message,
+        tool_calls: [
+          ...nextToolCalls,
+          {
+            id: Date.now(),
+            tool_call_id: toolCallId,
+            tool_name: patch.tool_name,
+            arguments_text: patch.arguments_text ?? '',
+            output_text: patch.output_text ?? '',
+            status: patch.status ?? 'started',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          },
+        ],
+      }
+    })
   }
 
   private patchState(patch: Partial<ChatConversationState>) {

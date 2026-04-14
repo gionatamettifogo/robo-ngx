@@ -131,6 +131,8 @@ describe('ChatStateService', () => {
       type: 'tool_result',
       messageId: 11,
       toolCallId: 'tool_1',
+      toolName: 'search_documents',
+      status: 'completed',
       output: { hits: 3 },
     })
 
@@ -142,6 +144,37 @@ describe('ChatStateService', () => {
         arguments_text: '{"query":"invoice"}',
         output_text: '{"hits":3}',
         status: 'completed',
+      }),
+    ])
+  })
+
+  it('creates a tool call from tool_result when the result arrives first', () => {
+    service.applyStreamEvent(
+      {
+        type: 'message_created',
+        chatId: 1,
+        userMessageId: 10,
+        assistantMessageId: 11,
+        runId: 'run_1',
+      },
+      'hello'
+    )
+
+    service.applyStreamEvent({
+      type: 'tool_result',
+      messageId: 11,
+      toolCallId: 'tool_9',
+      toolName: 'lookup_document',
+      status: 'failed',
+      output: 'Not found',
+    })
+
+    expect(service.snapshot.messages[1].tool_calls).toEqual([
+      expect.objectContaining({
+        tool_call_id: 'tool_9',
+        tool_name: 'lookup_document',
+        output_text: '"Not found"',
+        status: 'failed',
       }),
     ])
   })

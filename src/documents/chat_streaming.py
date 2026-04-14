@@ -161,17 +161,39 @@ def stream_chat_message(
 
             if event_type == "tool_result":
                 tool_call = tool_calls.get(event["tool_call_id"])
-                if tool_call is not None:
-                    tool_call.output_text = str(event.get("output"))
-                    tool_call.status = ChatToolCall.Status.COMPLETED
-                    tool_call.updated_at = timezone.now()
-                    tool_call.save(
-                        update_fields=["output_text", "status", "updated_at"],
+                if tool_call is None:
+                    tool_call = ChatToolCall.objects.create(
+                        message=assistant_message,
+                        tool_call_id=event["tool_call_id"],
+                        tool_name=event.get("tool_name") or "tool",
+                        status=ChatToolCall.Status.STARTED,
                     )
+                    tool_calls[event["tool_call_id"]] = tool_call
+                if event.get("output") is not None:
+                    tool_call.output_text = str(event.get("output"))
+                if event.get("tool_name"):
+                    tool_call.tool_name = event["tool_name"]
+                if event.get("status") == "failed":
+                    tool_call.status = ChatToolCall.Status.FAILED
+                elif event.get("status") == "in_progress":
+                    tool_call.status = ChatToolCall.Status.STARTED
+                else:
+                    tool_call.status = ChatToolCall.Status.COMPLETED
+                tool_call.updated_at = timezone.now()
+                tool_call.save(
+                    update_fields=[
+                        "tool_name",
+                        "output_text",
+                        "status",
+                        "updated_at",
+                    ],
+                )
                 yield {
                     "type": "tool_result",
                     "messageId": assistant_message.id,
                     "toolCallId": event["tool_call_id"],
+                    "toolName": tool_call.tool_name,
+                    "status": tool_call.status,
                     "output": event.get("output"),
                 }
                 continue

@@ -81,6 +81,8 @@ export type ChatStreamEvent =
       type: 'tool_result'
       messageId: number
       toolCallId: string
+      toolName?: string
+      status?: 'started' | 'completed' | 'failed'
       output: unknown
     }
   | {

@@ -66,3 +66,8 @@ class TestChatStreaming(TestCase):
         self.assertEqual(tool_call.arguments_text, '{"document_id": 12}')
         self.assertEqual(tool_call.output_text, "{'status': 'ok'}")
         self.assertEqual(tool_call.status, ChatToolCall.Status.COMPLETED)
+        tool_result_events = [
+            event for event in events if event["type"] == "tool_result"
+        ]
+        self.assertEqual(tool_result_events[0]["toolName"], "lookup_document")
+        self.assertEqual(tool_result_events[0]["status"], ChatToolCall.Status.COMPLETED)
