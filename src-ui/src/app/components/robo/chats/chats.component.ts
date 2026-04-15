@@ -8,6 +8,7 @@ import { firstValueFrom } from 'rxjs'
 import { Chat, ChatMessage } from 'src/app/data/chat'
 import { ChatStateService } from 'src/app/services/chat-state.service'
 import { ChatService } from 'src/app/services/rest/chat.service'
+import { ChatComposerComponent } from '../chat-composer/chat-composer.component'
 
 interface ChatListItem {
   chat: Chat
@@ -18,6 +19,7 @@ interface ChatListItem {
   selector: 'pngx-robo-chats',
   templateUrl: './chats.component.html',
   imports: [
+    ChatComposerComponent,
     FormsModule,
     NgClass,
     NgFor,
@@ -55,100 +57,6 @@ interface ChatListItem {
 
       .robo-icon-button.dropdown-toggle::after {
         display: none;
-      }
-
-      .robo-composer {
-        border: 1px solid var(--bs-border-color);
-        border-radius: 1.7rem;
-        background: var(--bs-body-bg);
-        box-shadow: var(--bs-box-shadow-sm);
-        padding: 0.45rem 0.7rem 0.45rem 0.8rem;
-      }
-
-      .robo-composer-shell {
-        display: flex;
-        align-items: center;
-        gap: 0.35rem;
-        min-height: 2.5rem;
-      }
-
-      .robo-composer-textarea {
-        flex: 1;
-        min-height: 1.6rem;
-        max-height: 16rem;
-        border: 0;
-        outline: 0;
-        resize: none;
-        overflow: hidden;
-        background: transparent;
-        color: var(--bs-body-color);
-        font-size: 1rem;
-        line-height: 1.4;
-        padding: 0;
-        margin: 0;
-      }
-
-      .robo-composer-textarea::placeholder {
-        color: var(--bs-secondary-color);
-      }
-
-      .robo-composer-actions,
-      .robo-composer-left,
-      .robo-composer-right {
-        display: flex;
-        align-items: center;
-      }
-
-      .robo-composer-actions {
-        flex: 1;
-        justify-content: space-between;
-        gap: 0.75rem;
-        min-width: 0;
-      }
-
-      .robo-composer-left,
-      .robo-composer-right {
-        gap: 0.35rem;
-      }
-
-      .robo-composer-affordance {
-        width: 2rem;
-        height: 2rem;
-        border: 0;
-        border-radius: 999px;
-        background: transparent;
-        color: var(--bs-secondary-color);
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-      }
-
-      .robo-send-button {
-        width: 32px;
-        height: 32px;
-        border: 0;
-        border-radius: 999px;
-        background: transparent;
-        color: var(--bs-body-color);
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 32px;
-        line-height: 1;
-        padding: 0;
-      }
-
-      .robo-send-button:disabled {
-        opacity: 0.45;
-      }
-
-      .robo-composer-input-wrap {
-        flex: 1;
-        min-width: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 2rem;
       }
 
       .robo-tabs {
@@ -340,25 +248,6 @@ export class ChatsComponent implements OnInit {
     } finally {
       this.creating = false
     }
-  }
-
-  async onComposerKeydown(event: KeyboardEvent) {
-    if (event.key !== 'Enter' || event.shiftKey) {
-      return
-    }
-
-    event.preventDefault()
-    await this.createChat()
-  }
-
-  autoResizeComposer(event: Event) {
-    const textarea = event.target as HTMLTextAreaElement | null
-    if (!textarea) {
-      return
-    }
-
-    textarea.style.height = 'auto'
-    textarea.style.height = `${Math.min(textarea.scrollHeight, 256)}px`
   }
 
   async renameChat(chat: Chat, event?: Event) {

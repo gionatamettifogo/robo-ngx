@@ -97,11 +97,14 @@ import {
   google,
   grid,
   gripVertical,
+  handThumbsDown,
+  handThumbsUp,
   hash,
   hddStack,
   house,
   infoCircle,
   journals,
+  lightbulb,
   link,
   listNested,
   listTask,
@@ -126,6 +129,7 @@ import {
   scissors,
   search,
   send,
+  share,
   slashCircle,
   sliders2Vertical,
   sortAlphaDown,
@@ -147,6 +151,7 @@ import {
 } from 'ngx-bootstrap-icons'
 import { ColorSliderModule } from 'ngx-color/slider'
 import { CookieService } from 'ngx-cookie-service'
+import { provideMarkdown } from 'ngx-markdown'
 import { TourNgBootstrapModule } from 'ngx-ui-tour-ng-bootstrap'
 import { AppRoutingModule } from './app/app-routing.module'
 import { AppComponent } from './app/app.component'
@@ -319,12 +324,15 @@ const icons = {
   google,
   grid,
   gripVertical,
+  handThumbsDown,
+  handThumbsUp,
   hash,
   hddStack,
   house,
   infoCircle,
   journals,
   link,
+  lightbulb,
   listNested,
   listTask,
   listUl,
@@ -348,6 +356,7 @@ const icons = {
   scissors,
   search,
   send,
+  share,
   slashCircle,
   sliders2Vertical,
   sortAlphaDown,
@@ -422,5 +431,6 @@ bootstrapApplication(AppComponent, {
     DocumentTypeNamePipe,
     StoragePathNamePipe,
     provideHttpClient(withInterceptorsFromDi()),
+    provideMarkdown(),
   ],
 }).catch((err) => console.error(err))

@@ -8,47 +8,13 @@
 
   <div class="robo-page-title h3 mb-4 text-center">How can I help you today?</div>
 
-  <section class="robo-composer">
-    <div class="robo-composer-shell">
-      <div class="robo-composer-left">
-        <button
-          class="robo-composer-affordance"
-          type="button"
-          aria-label="Add attachment"
-        >
-          <i-bs name="plus"></i-bs>
-        </button>
-      </div>
-
-      <div class="robo-composer-input-wrap">
-        <textarea
-          class="robo-composer-textarea"
-          [ngModel]="prompt"
-          (ngModelChange)="prompt = $event"
-          (input)="autoResizeComposer($event)"
-          (keydown)="onComposerKeydown($event)"
-          [disabled]="creating"
-          placeholder="Ask anything"
-          rows="1"
-        ></textarea>
-      </div>
-
-      <div class="robo-composer-right ms-auto">
-        <button class="robo-composer-affordance" type="button" aria-label="Voice input">
-          <i-bs name="mic"></i-bs>
-        </button>
-        <button
-          class="robo-send-button"
-          type="button"
-          (click)="createChat()"
-          [disabled]="creating || !prompt.trim()"
-          aria-label="Send message"
-        >
-          <i-bs name="arrow-up-circle-fill"></i-bs>
-        </button>
-      </div>
-    </div>
-  </section>
+  <pngx-robo-chat-composer
+    [value]="prompt"
+    (valueChange)="prompt = $event"
+    [disabled]="creating"
+    [submitDisabled]="creating || !prompt.trim()"
+    (submit)="createChat()"
+  />
 
   <div class="robo-tabs">
     <button
