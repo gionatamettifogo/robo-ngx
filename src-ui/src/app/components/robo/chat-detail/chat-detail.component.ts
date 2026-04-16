@@ -22,6 +22,7 @@ import {
 import { RenameDialogComponent } from '../../common/rename-dialog/rename-dialog.component'
 import { ChatComposerComponent } from '../chat-composer/chat-composer.component'
 import { IconActionButtonComponent } from '../icon-action-button/icon-action-button.component'
+import { ChatMermaidDirective } from './chat-mermaid.directive'
 
 @Component({
   selector: 'pngx-robo-chat-detail',
@@ -29,6 +30,7 @@ import { IconActionButtonComponent } from '../icon-action-button/icon-action-but
   imports: [
     AsyncPipe,
     ChatComposerComponent,
+    ChatMermaidDirective,
     IconActionButtonComponent,
     MarkdownComponent,
     NgFor,
@@ -274,6 +276,21 @@ import { IconActionButtonComponent } from '../icon-action-button/icon-action-but
       .robo-assistant-markdown ::ng-deep pre code {
         padding: 0;
         background: transparent;
+      }
+
+      .robo-assistant-markdown ::ng-deep .robo-mermaid-diagram {
+        overflow-x: auto;
+        padding: 0.9rem 1rem;
+        margin: 0 0 1rem;
+        border-radius: 0.85rem;
+        background: #f8f9fa;
+      }
+
+      .robo-assistant-markdown ::ng-deep .robo-mermaid-diagram svg {
+        display: block;
+        max-width: 100%;
+        height: auto;
+        margin: 0 auto;
       }
 
       .robo-assistant-markdown ::ng-deep table {

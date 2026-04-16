@@ -63,7 +63,11 @@
               <span>{{ thinkingToggleLabel(message) }}</span>
             </button>
 
-            <markdown class="robo-assistant-markdown mt-2" [data]="message.content" />
+            <markdown
+              class="robo-assistant-markdown mt-2"
+              pngxRoboChatMermaid
+              [data]="message.content"
+            />
 
             <div *ngIf="shouldShowAssistantActions(message)" class="robo-assistant-actions">
               <pngx-robo-icon-action-button icon="clipboard" [tooltip]="copyResponseTooltip" [ariaLabel]="copyResponseAriaLabel"
