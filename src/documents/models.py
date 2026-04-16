@@ -649,6 +649,65 @@ class ChatToolCall(models.Model):
         return f"{self.tool_name} ({self.tool_call_id})"
 
 
+class Feedback(models.Model):
+    class Vote(models.IntegerChoices):
+        NEGATIVE = (-1, _("Negative"))
+        POSITIVE = (1, _("Positive"))
+
+    document = models.ForeignKey(
+        Document,
+        blank=True,
+        null=True,
+        related_name="feedback_entries",
+        on_delete=models.SET_NULL,
+        verbose_name=_("document"),
+    )
+    message = models.ForeignKey(
+        ChatMessage,
+        blank=True,
+        null=True,
+        related_name="feedback_entries",
+        on_delete=models.CASCADE,
+        verbose_name=_("message"),
+    )
+    vote = models.IntegerField(_("vote"), choices=Vote.choices)
+    reason = models.TextField(_("reason"), blank=True, default="")
+    created_at = models.DateTimeField(
+        _("created at"),
+        default=timezone.now,
+        db_index=True,
+    )
+    owner = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="feedback_entries",
+        verbose_name=_("owner"),
+    )
+
+    class Meta:
+        verbose_name = _("feedback")
+        verbose_name_plural = _("feedback")
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(document__isnull=False)
+                | models.Q(message__isnull=False),
+                name="documents_feedback_has_target",
+            ),
+            models.UniqueConstraint(
+                fields=["owner", "message"],
+                condition=models.Q(message__isnull=False),
+                name="documents_feedback_owner_message_unique",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["owner", "created_at"]),
+            models.Index(fields=["message", "created_at"]),
+        ]
+
+    def __str__(self):
+        return f"Feedback {self.pk}"
+
+
 class SavedViewFilterRule(models.Model):
     RULE_TYPES = [
         (0, _("title contains")),

@@ -35,6 +35,7 @@ from django.db.models import IntegerField
 from django.db.models import Max
 from django.db.models import Model
 from django.db.models import OrderBy
+from django.db.models import Prefetch
 from django.db.models import Sum
 from django.db.models import When
 from django.db.models.functions import Length
@@ -133,11 +134,13 @@ from documents.matching import match_document_types
 from documents.matching import match_storage_paths
 from documents.matching import match_tags
 from documents.models import Chat
+from documents.models import ChatMessage
 from documents.models import Correspondent
 from documents.models import CustomField
 from documents.models import CustomFieldInstance
 from documents.models import Document
 from documents.models import DocumentType
+from documents.models import Feedback
 from documents.models import Note
 from documents.models import PaperlessTask
 from documents.models import SavedView
@@ -176,6 +179,8 @@ from documents.serialisers import DocumentListSerializer
 from documents.serialisers import DocumentSerializer
 from documents.serialisers import DocumentTypeSerializer
 from documents.serialisers import EmailSerializer
+from documents.serialisers import FeedbackCreateSerializer
+from documents.serialisers import FeedbackSerializer
 from documents.serialisers import NotesSerializer
 from documents.serialisers import PostDocumentSerializer
 from documents.serialisers import RunTaskViewSerializer
@@ -1569,7 +1574,7 @@ class ChatViewSet(ModelViewSet, PassUserMixin):
     serializer_class = ChatSerializer
     pagination_class = StandardPagination
     permission_classes = (IsAuthenticated, PaperlessObjectPermissions)
-    http_method_names = ["get", "post", "patch", "head", "options"]
+    http_method_names = ["get", "post", "patch", "delete", "head", "options"]
 
     def get_queryset(self):
         return (
@@ -1596,6 +1601,9 @@ class ChatViewSet(ModelViewSet, PassUserMixin):
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)
 
+    def destroy(self, request, *args, **kwargs):
+        return Response(status=405)
+
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data, user=request.user)
         serializer.is_valid(raise_exception=True)
@@ -1606,11 +1614,21 @@ class ChatViewSet(ModelViewSet, PassUserMixin):
     @action(detail=True, methods=["get"])
     def messages(self, request, pk=None):
         chat = self.get_object()
-        messages = chat.messages.prefetch_related("tool_calls").order_by(
+        messages = chat.messages.prefetch_related(
+            "tool_calls",
+            Prefetch(
+                "feedback_entries",
+                queryset=Feedback.objects.filter(owner=request.user),
+            ),
+        ).order_by(
             "created_at",
             "id",
         )
-        serializer = ChatMessageSerializer(messages, many=True)
+        serializer = ChatMessageSerializer(
+            messages,
+            many=True,
+            context={"user": request.user},
+        )
         return Response(serializer.data)
 
     @action(detail=True, methods=["post"], url_path="messages/stream")
@@ -1643,6 +1661,42 @@ class ChatViewSet(ModelViewSet, PassUserMixin):
         # Mark this response as identity-encoded so the stream flushes progressively.
         response["Content-Encoding"] = "identity"
         return response
+
+    @action(
+        detail=True,
+        methods=["post", "delete"],
+        url_path=r"messages/(?P<message_id>[^/.]+)/feedback",
+    )
+    def feedback(self, request, pk=None, message_id=None):
+        chat = self.get_object()
+        message = get_object_or_404(chat.messages, pk=message_id)
+
+        if message.role != ChatMessage.Role.ASSISTANT:
+            raise ValidationError(
+                _("Feedback is only supported for assistant messages."),
+            )
+
+        if request.method.lower() == "delete":
+            Feedback.objects.filter(owner=request.user, message=message).delete()
+            return Response(status=204)
+
+        serializer = FeedbackCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        feedback, created = Feedback.objects.update_or_create(
+            owner=request.user,
+            message=message,
+            defaults={
+                "document": chat.document,
+                "vote": serializer.validated_data["vote"],
+                "reason": serializer.validated_data.get("reason", ""),
+            },
+        )
+
+        return Response(
+            FeedbackSerializer(feedback).data,
+            status=201 if created else 200,
+        )
 
 
 @extend_schema_view(

@@ -60,6 +60,7 @@ from documents.models import CustomField
 from documents.models import CustomFieldInstance
 from documents.models import Document
 from documents.models import DocumentType
+from documents.models import Feedback
 from documents.models import MatchingModel
 from documents.models import Note
 from documents.models import PaperlessTask
@@ -2844,8 +2845,55 @@ class ChatPatchSerializer(SerializerWithPerms, serializers.ModelSerializer):
         fields = ("title", "archived", "pinned", "agent_id")
 
 
+class FeedbackSerializer(serializers.ModelSerializer):
+    document_id = serializers.ReadOnlyField()
+    message_id = serializers.ReadOnlyField()
+    owner_id = serializers.ReadOnlyField()
+
+    class Meta:
+        model = Feedback
+        fields = (
+            "id",
+            "document_id",
+            "message_id",
+            "vote",
+            "reason",
+            "created_at",
+            "owner_id",
+        )
+        read_only_fields = fields
+
+
+class FeedbackCreateSerializer(serializers.Serializer):
+    vote = serializers.ChoiceField(choices=Feedback.Vote.choices)
+    reason = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        trim_whitespace=True,
+    )
+
+
 class ChatMessageSerializer(serializers.ModelSerializer):
     tool_calls = ChatToolCallSerializer(many=True, read_only=True)
+    feedback = serializers.SerializerMethodField()
+
+    @extend_schema_field(FeedbackSerializer)
+    def get_feedback(self, obj):
+        feedback = None
+        prefetched_feedback = getattr(obj, "_prefetched_objects_cache", {}).get(
+            "feedback_entries",
+        )
+        if prefetched_feedback is not None:
+            feedback = next(iter(prefetched_feedback), None)
+        else:
+            user = self.context.get("user")
+            if user is not None and user.is_authenticated:
+                feedback = obj.feedback_entries.filter(owner=user).first()
+
+        if feedback is None:
+            return None
+
+        return FeedbackSerializer(feedback).data
 
     class Meta:
         model = ChatMessage
@@ -2865,6 +2913,7 @@ class ChatMessageSerializer(serializers.ModelSerializer):
             "output_tokens",
             "total_tokens",
             "tool_calls",
+            "feedback",
         )
         read_only_fields = fields
 
