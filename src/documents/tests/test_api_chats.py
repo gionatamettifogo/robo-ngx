@@ -10,6 +10,7 @@ from rest_framework.test import APITestCase
 from documents.models import Chat
 from documents.models import ChatMessage
 from documents.models import Document
+from documents.models import Feedback
 
 
 class TestApiChats(APITestCase):
@@ -100,6 +101,33 @@ class TestApiChats(APITestCase):
             [message["id"] for message in response.data],
             [first.id, second.id],
         )
+
+    def test_messages_include_current_users_feedback_only(self):
+        chat = Chat.objects.create(owner=self.user, title="Chat")
+        message = ChatMessage.objects.create(
+            chat=chat,
+            role=ChatMessage.Role.ASSISTANT,
+            status=ChatMessage.Status.COMPLETED,
+            content="assistant",
+        )
+        Feedback.objects.create(
+            owner=self.user,
+            message=message,
+            vote=Feedback.Vote.POSITIVE,
+            reason="Good response",
+        )
+        Feedback.objects.create(
+            owner=self.other_user,
+            message=message,
+            vote=Feedback.Vote.NEGATIVE,
+            reason="Bad response",
+        )
+
+        response = self.client.get(f"/api/chats/{chat.id}/messages/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data[0]["feedback"]["vote"], Feedback.Vote.POSITIVE)
+        self.assertEqual(response.data[0]["feedback"]["reason"], "Good response")
 
     def test_cannot_access_another_users_chat(self):
         chat = Chat.objects.create(owner=self.other_user, title="Private")
@@ -194,3 +222,63 @@ class TestApiChats(APITestCase):
         )
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_can_create_and_delete_message_feedback(self):
+        chat = Chat.objects.create(owner=self.user, title="Chat")
+        message = ChatMessage.objects.create(
+            chat=chat,
+            role=ChatMessage.Role.ASSISTANT,
+            status=ChatMessage.Status.COMPLETED,
+            content="assistant",
+        )
+
+        create_response = self.client.post(
+            f"/api/chats/{chat.id}/messages/{message.id}/feedback/",
+            json.dumps({"vote": 1, "reason": "Good response"}),
+            content_type="application/json",
+        )
+
+        self.assertEqual(create_response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(create_response.data["vote"], Feedback.Vote.POSITIVE)
+        self.assertTrue(
+            Feedback.objects.filter(
+                owner=self.user,
+                message=message,
+                vote=Feedback.Vote.POSITIVE,
+            ).exists(),
+        )
+
+        delete_response = self.client.delete(
+            f"/api/chats/{chat.id}/messages/{message.id}/feedback/",
+        )
+
+        self.assertEqual(delete_response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(
+            Feedback.objects.filter(owner=self.user, message=message).exists(),
+        )
+
+    def test_feedback_post_updates_existing_feedback(self):
+        chat = Chat.objects.create(owner=self.user, title="Chat")
+        message = ChatMessage.objects.create(
+            chat=chat,
+            role=ChatMessage.Role.ASSISTANT,
+            status=ChatMessage.Status.COMPLETED,
+            content="assistant",
+        )
+        Feedback.objects.create(
+            owner=self.user,
+            message=message,
+            vote=Feedback.Vote.POSITIVE,
+            reason="Good response",
+        )
+
+        response = self.client.post(
+            f"/api/chats/{chat.id}/messages/{message.id}/feedback/",
+            json.dumps({"vote": -1, "reason": "Incorrect or incomplete"}),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        feedback = Feedback.objects.get(owner=self.user, message=message)
+        self.assertEqual(feedback.vote, Feedback.Vote.NEGATIVE)
+        self.assertEqual(feedback.reason, "Incorrect or incomplete")

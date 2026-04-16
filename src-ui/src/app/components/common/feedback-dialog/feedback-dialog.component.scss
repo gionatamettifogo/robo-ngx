@@ -1,0 +1,31 @@
+.robo-feedback-reasons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.robo-feedback-reason {
+  border: 1px solid var(--bs-border-color);
+  border-radius: 999px;
+  padding: 0.55rem 0.85rem;
+  background: var(--bs-body-bg);
+  color: var(--bs-body-color);
+  line-height: 1.2;
+  transition:
+    border-color 120ms ease,
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.robo-feedback-reason:hover,
+.robo-feedback-reason--selected {
+  border-color: var(--bs-primary);
+  background: rgba(var(--bs-primary-rgb), 0.08);
+  color: var(--bs-primary);
+}
+
+.robo-feedback-details {
+  min-height: 5rem;
+  resize: vertical;
+}

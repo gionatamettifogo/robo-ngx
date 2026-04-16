@@ -2,7 +2,12 @@ import { inject, Injectable } from '@angular/core'
 import { Meta } from '@angular/platform-browser'
 import { CookieService } from 'ngx-cookie-service'
 import { Observable } from 'rxjs'
-import { Chat, ChatMessage, ChatStreamEvent } from 'src/app/data/chat'
+import {
+  Chat,
+  ChatFeedback,
+  ChatMessage,
+  ChatStreamEvent,
+} from 'src/app/data/chat'
 import { consumeNdjsonStream } from 'src/app/utils/chat-stream'
 import { environment } from 'src/environments/environment'
 import { AbstractPaperlessService } from './abstract-paperless-service'
@@ -21,6 +26,27 @@ export class ChatService extends AbstractPaperlessService<Chat> {
 
   listMessages(chatId: number): Observable<ChatMessage[]> {
     return this.http.get<ChatMessage[]>(this.getResourceUrl(chatId, 'messages'))
+  }
+
+  submitFeedback(
+    chatId: number,
+    messageId: number,
+    vote: 1 | -1,
+    reason = ''
+  ): Observable<ChatFeedback> {
+    return this.http.post<ChatFeedback>(
+      this.getResourceUrl(chatId, `messages/${messageId}/feedback`),
+      {
+        vote,
+        reason,
+      }
+    )
+  }
+
+  removeFeedback(chatId: number, messageId: number): Observable<void> {
+    return this.http.delete<void>(
+      this.getResourceUrl(chatId, `messages/${messageId}/feedback`)
+    )
   }
 
   async streamMessage(params: {

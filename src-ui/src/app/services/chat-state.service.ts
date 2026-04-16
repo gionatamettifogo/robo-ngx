@@ -3,6 +3,7 @@ import { BehaviorSubject, firstValueFrom } from 'rxjs'
 import {
   ActiveStreamState,
   ChatConversationState,
+  ChatFeedback,
   ChatMessage,
   ChatStreamEvent,
   ChatToolCall,
@@ -40,6 +41,13 @@ export class ChatStateService {
 
   setPendingInput(value: string) {
     this.patchState({ pendingInput: value })
+  }
+
+  setMessageFeedback(messageId: number, feedback: ChatFeedback | null) {
+    this.updateMessage(messageId, (message) => ({
+      ...message,
+      feedback,
+    }))
   }
 
   async loadChat(chatId: number): Promise<void> {

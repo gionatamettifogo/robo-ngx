@@ -7,12 +7,18 @@ import {
   OnInit,
 } from '@angular/core'
 import { ActivatedRoute, Router, RouterLink } from '@angular/router'
+import { NgbModal } from '@ng-bootstrap/ng-bootstrap'
 import { NgxBootstrapIconsModule } from 'ngx-bootstrap-icons'
 import { MarkdownComponent } from 'ngx-markdown'
-import { Subject, takeUntil } from 'rxjs'
+import { firstValueFrom, Subject, takeUntil } from 'rxjs'
 import { ChatMessage, ChatMessageStatusPill } from 'src/app/data/chat'
 import { ChatStateService } from 'src/app/services/chat-state.service'
+import { ChatService } from 'src/app/services/rest/chat.service'
 import { ToastService } from 'src/app/services/toast.service'
+import {
+  FeedbackDialogComponent,
+  FeedbackDialogResult,
+} from '../../common/feedback-dialog/feedback-dialog.component'
 import { ChatComposerComponent } from '../chat-composer/chat-composer.component'
 import { IconActionButtonComponent } from '../icon-action-button/icon-action-button.component'
 
@@ -294,6 +300,8 @@ import { IconActionButtonComponent } from '../icon-action-button/icon-action-but
 export class ChatDetailComponent implements OnInit, OnDestroy {
   private route = inject(ActivatedRoute)
   private router = inject(Router)
+  private modalService = inject(NgbModal)
+  private chatService = inject(ChatService)
   private toastService = inject(ToastService)
   private destroy$ = new Subject<void>()
   private initialPromptHandledForChatId: number | null = null
@@ -339,6 +347,35 @@ export class ChatDetailComponent implements OnInit, OnDestroy {
     } catch (error) {
       this.toastService.showError($localize`Error copying to clipboard`, error)
     }
+  }
+
+  async togglePositiveFeedback(message: ChatMessage): Promise<void> {
+    if (message.feedback?.vote === 1) {
+      await this.removeFeedback(message)
+      return
+    }
+
+    await this.saveFeedback(message, 1)
+  }
+
+  async toggleNegativeFeedback(message: ChatMessage): Promise<void> {
+    if (message.feedback?.vote === -1) {
+      await this.removeFeedback(message)
+      return
+    }
+
+    const modal = this.modalService.open(FeedbackDialogComponent, {
+      centered: true,
+    })
+    const result = (await modal.result.catch(
+      () => null
+    )) as FeedbackDialogResult | null
+
+    if (!result) {
+      return
+    }
+
+    await this.saveFeedback(message, -1, result.reason)
   }
 
   @HostListener('window:scroll')
@@ -497,6 +534,42 @@ export class ChatDetailComponent implements OnInit, OnDestroy {
 
     if (!copied) {
       throw new Error('Clipboard copy failed')
+    }
+  }
+
+  private async saveFeedback(
+    message: ChatMessage,
+    vote: 1 | -1,
+    reason = ''
+  ): Promise<void> {
+    const chatId = this.chatState.snapshot.chat?.id
+    if (chatId == null) {
+      return
+    }
+
+    try {
+      const feedback = await firstValueFrom(
+        this.chatService.submitFeedback(chatId, message.id, vote, reason)
+      )
+      this.chatState.setMessageFeedback(message.id, feedback)
+      this.toastService.showInfo($localize`Thank you for your feedback`)
+    } catch (error) {
+      this.toastService.showError($localize`Error saving feedback`, error)
+    }
+  }
+
+  private async removeFeedback(message: ChatMessage): Promise<void> {
+    const chatId = this.chatState.snapshot.chat?.id
+    if (chatId == null) {
+      return
+    }
+
+    try {
+      await firstValueFrom(this.chatService.removeFeedback(chatId, message.id))
+      this.chatState.setMessageFeedback(message.id, null)
+      this.toastService.showInfo($localize`Feedback removed.`)
+    } catch (error) {
+      this.toastService.showError($localize`Error removing feedback`, error)
     }
   }
 }

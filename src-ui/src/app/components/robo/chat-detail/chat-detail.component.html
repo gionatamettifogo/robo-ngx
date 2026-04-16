@@ -77,14 +77,28 @@
                 (pressed)="copyMessage(message.content)"
               />
               <pngx-robo-icon-action-button
+                *ngIf="message.feedback?.vote !== -1"
                 icon="hand-thumbs-up"
-                tooltip="Good response"
+                [tooltip]="
+                  message.feedback?.vote === 1
+                    ? 'Remove feedback'
+                    : 'Good response'
+                "
                 ariaLabel="Good response"
+                [selected]="message.feedback?.vote === 1"
+                (pressed)="togglePositiveFeedback(message)"
               />
               <pngx-robo-icon-action-button
+                *ngIf="message.feedback?.vote !== 1"
                 icon="hand-thumbs-down"
-                tooltip="Bad response"
+                [tooltip]="
+                  message.feedback?.vote === -1
+                    ? 'Remove feedback'
+                    : 'Bad response'
+                "
                 ariaLabel="Bad response"
+                [selected]="message.feedback?.vote === -1"
+                (pressed)="toggleNegativeFeedback(message)"
               />
               <pngx-robo-icon-action-button
                 icon="share"

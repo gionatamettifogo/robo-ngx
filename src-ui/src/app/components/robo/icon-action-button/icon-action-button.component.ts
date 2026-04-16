@@ -9,6 +9,7 @@ import { NgxBootstrapIconsModule } from 'ngx-bootstrap-icons'
   template: `
     <button
       class="robo-icon-action-button"
+      [class.robo-icon-action-button--selected]="selected"
       type="button"
       [ngbTooltip]="tooltip"
       [placement]="placement"
@@ -41,6 +42,10 @@ import { NgxBootstrapIconsModule } from 'ngx-bootstrap-icons'
         color: var(--bs-primary);
       }
 
+      .robo-icon-action-button--selected {
+        color: var(--bs-primary);
+      }
+
       .robo-icon-action-button i-bs {
         display: inline-flex;
         align-items: center;
@@ -55,5 +60,6 @@ export class IconActionButtonComponent {
   @Input({ required: true }) tooltip!: string
   @Input() ariaLabel = ''
   @Input() placement = 'bottom'
+  @Input() selected = false
   @Output() pressed = new EventEmitter<void>()
 }

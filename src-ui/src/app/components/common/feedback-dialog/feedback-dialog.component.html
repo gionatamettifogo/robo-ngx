@@ -1,0 +1,42 @@
+<div class="modal-header border-0 pb-3">
+  <h4 class="modal-title">{{ title }}</h4>
+  <button
+    type="button"
+    class="btn-close"
+    [attr.aria-label]="closeLabel"
+    (click)="close()"
+  ></button>
+</div>
+
+<div class="modal-body pt-0">
+  <div class="robo-feedback-reasons">
+    <button
+      *ngFor="let reason of reasons"
+      type="button"
+      class="robo-feedback-reason"
+      [ngClass]="{ 'robo-feedback-reason--selected': selectedReason === reason }"
+      (click)="selectedReason = reason"
+    >
+      {{ reason }}
+    </button>
+  </div>
+
+  <textarea
+    class="form-control robo-feedback-details"
+    rows="3"
+    [placeholder]="detailsPlaceholder"
+    [(ngModel)]="details"
+  ></textarea>
+</div>
+
+<div class="modal-footer border-0 pt-0">
+  <button
+    type="button"
+    class="btn btn-primary"
+    [disabled]="!selectedReason"
+    (click)="submit()"
+    i18n
+  >
+    Submit
+  </button>
+</div>

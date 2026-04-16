@@ -23,6 +23,16 @@ export interface ChatToolCall extends ObjectWithId {
   updated_at: string
 }
 
+export interface ChatFeedback extends ObjectWithId {
+  id: number
+  document_id?: number | null
+  message_id?: number | null
+  vote: 1 | -1
+  reason: string
+  created_at: string
+  owner_id: number
+}
+
 export interface ChatMessage extends ObjectWithId {
   id: number
   chat: number
@@ -39,6 +49,7 @@ export interface ChatMessage extends ObjectWithId {
   output_tokens?: number | null
   total_tokens?: number | null
   tool_calls?: ChatToolCall[]
+  feedback?: ChatFeedback | null
 }
 
 export interface ChatMessageStatusPill {
