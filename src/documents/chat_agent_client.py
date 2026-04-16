@@ -39,7 +39,7 @@ class AgentClient:
             )
 
         endpoint = urljoin(settings.AI_API_URL.rstrip("/") + "/", "chat/completions")
-        session_id = f"robo-ngx-{chat.id}"
+        session_id = f"robo-ngx-{chat.id:07d}"
         payload = {
             "model": settings.AI_MODEL,
             "stream": True,
