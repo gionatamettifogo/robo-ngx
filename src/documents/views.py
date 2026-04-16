@@ -1668,6 +1668,7 @@ class ChatViewSet(ModelViewSet, PassUserMixin):
         url_path=r"messages/(?P<message_id>[^/.]+)/feedback",
     )
     def feedback(self, request, pk=None, message_id=None):
+        # ROBO: Per-message assistant feedback endpoint used by the chat detail UI.
         chat = self.get_object()
         message = get_object_or_404(chat.messages, pk=message_id)
 

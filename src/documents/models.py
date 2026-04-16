@@ -650,6 +650,7 @@ class ChatToolCall(models.Model):
 
 
 class Feedback(models.Model):
+    # ROBO: Local chat feedback model for assistant responses.
     class Vote(models.IntegerChoices):
         NEGATIVE = (-1, _("Negative"))
         POSITIVE = (1, _("Positive"))

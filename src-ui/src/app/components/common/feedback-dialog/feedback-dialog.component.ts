@@ -19,16 +19,18 @@ export interface FeedbackDialogResult {
 export class FeedbackDialogComponent {
   private activeModal = inject(NgbActiveModal)
 
-  @Input() title = $localize`Share feedback`
-  closeLabel = $localize`Close`
-  detailsPlaceholder = $localize`Share details (optional)`
+  // ROBO: Reusable feedback modal for negative-response capture in Robo flows.
+  @Input() title =
+    $localize`:Robo|Title for negative feedback dialog:Share feedback`
+  closeLabel = $localize`:Robo|Aria label for closing feedback dialog:Close`
+  detailsPlaceholder = $localize`:Robo|Placeholder for optional feedback details textarea:Share details (optional)`
   @Input() reasons = [
-    $localize`Incorrect or incomplete`,
-    $localize`Not what I asked for`,
-    $localize`Slow or buggy`,
-    $localize`Style or tone`,
-    $localize`Safety or legal concern`,
-    $localize`Other`,
+    $localize`:Robo|Negative feedback preset reason:Incorrect or incomplete`,
+    $localize`:Robo|Negative feedback preset reason:Not what I asked for`,
+    $localize`:Robo|Negative feedback preset reason:Slow or buggy`,
+    $localize`:Robo|Negative feedback preset reason:Style or tone`,
+    $localize`:Robo|Negative feedback preset reason:Safety or legal concern`,
+    $localize`:Robo|Negative feedback preset reason:Other`,
   ]
 
   selectedReason = ''

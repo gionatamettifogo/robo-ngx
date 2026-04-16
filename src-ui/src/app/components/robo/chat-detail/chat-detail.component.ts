@@ -308,6 +308,25 @@ export class ChatDetailComponent implements OnInit, OnDestroy {
   private shouldStickToBottom = false
 
   readonly chatState = inject(ChatStateService)
+  // ROBO: Chat-detail-specific localized labels kept here so Robo strings are
+  // isolated from upstream Paperless templates and easier to merge.
+  readonly chatFallbackTitle = $localize`:Robo|Fallback title for chat detail page:Chat`
+  readonly composerPlaceholder = $localize`:Robo|Placeholder for chat composer on chat detail page:Come posso aiutarti oggi?`
+  readonly copyMessageTooltip = $localize`:Robo|Tooltip for copying a user message:Copy message`
+  readonly copyUserMessageAriaLabel = $localize`:Robo|Aria label for copying a user message:Copy user message`
+  readonly deleteMessageTooltip = $localize`:Robo|Tooltip for deleting a user message:Delete message`
+  readonly deleteUserMessageAriaLabel = $localize`:Robo|Aria label for deleting a user message:Delete user message`
+  readonly copyResponseTooltip = $localize`:Robo|Tooltip for copying an assistant response:Copy response`
+  readonly copyResponseAriaLabel = $localize`:Robo|Aria label for copying an assistant response:Copy response`
+  readonly goodResponseAriaLabel = $localize`:Robo|Aria label for positive assistant feedback:Good response`
+  readonly badResponseAriaLabel = $localize`:Robo|Aria label for negative assistant feedback:Bad response`
+  readonly shareTooltip = $localize`:Robo|Tooltip for sharing an assistant response:Share`
+  readonly shareAriaLabel = $localize`:Robo|Aria label for sharing an assistant response:Share`
+  readonly removeFeedbackTooltip = $localize`:Robo|Tooltip for removing existing feedback:Remove feedback`
+  readonly goodResponseTooltip = $localize`:Robo|Tooltip for positive assistant feedback:Good response`
+  readonly badResponseTooltip = $localize`:Robo|Tooltip for negative assistant feedback:Bad response`
+  readonly thinkingStreamingLabel = $localize`:Robo|Thinking label while assistant response is streaming:Thinking...`
+  readonly thinkingCompleteLabel = $localize`:Robo|Thinking label when assistant response is complete:Thinking complete`
 
   ngOnInit(): void {
     this.route.paramMap.pipe(takeUntil(this.destroy$)).subscribe((params) => {
@@ -343,9 +362,14 @@ export class ChatDetailComponent implements OnInit, OnDestroy {
 
     try {
       await this.writeToClipboard(text)
-      this.toastService.showInfo($localize`Copied to clipboard`)
+      this.toastService.showInfo(
+        $localize`:Robo|Toast shown after copying text to clipboard:Copied to clipboard`
+      )
     } catch (error) {
-      this.toastService.showError($localize`Error copying to clipboard`, error)
+      this.toastService.showError(
+        $localize`:Robo|Toast shown when copying to clipboard fails:Error copying to clipboard`,
+        error
+      )
     }
   }
 
@@ -436,7 +460,21 @@ export class ChatDetailComponent implements OnInit, OnDestroy {
   }
 
   thinkingToggleLabel(message: ChatMessage): string {
-    return message.status === 'streaming' ? 'Thinking...' : 'Thinking complete'
+    return message.status === 'streaming'
+      ? this.thinkingStreamingLabel
+      : this.thinkingCompleteLabel
+  }
+
+  positiveFeedbackTooltip(message: ChatMessage): string {
+    return message.feedback?.vote === 1
+      ? this.removeFeedbackTooltip
+      : this.goodResponseTooltip
+  }
+
+  negativeFeedbackTooltip(message: ChatMessage): string {
+    return message.feedback?.vote === -1
+      ? this.removeFeedbackTooltip
+      : this.badResponseTooltip
   }
 
   shouldShowAssistantActions(message: ChatMessage): boolean {
@@ -542,6 +580,8 @@ export class ChatDetailComponent implements OnInit, OnDestroy {
     vote: 1 | -1,
     reason = ''
   ): Promise<void> {
+    // ROBO: Assistant feedback is stored separately from chat messages so the
+    // fork can evolve this UX without changing upstream chat persistence.
     const chatId = this.chatState.snapshot.chat?.id
     if (chatId == null) {
       return
@@ -552,9 +592,14 @@ export class ChatDetailComponent implements OnInit, OnDestroy {
         this.chatService.submitFeedback(chatId, message.id, vote, reason)
       )
       this.chatState.setMessageFeedback(message.id, feedback)
-      this.toastService.showInfo($localize`Thank you for your feedback`)
+      this.toastService.showInfo(
+        $localize`:Robo|Toast shown after feedback submission succeeds:Thank you for your feedback`
+      )
     } catch (error) {
-      this.toastService.showError($localize`Error saving feedback`, error)
+      this.toastService.showError(
+        $localize`:Robo|Toast shown when feedback submission fails:Error saving feedback`,
+        error
+      )
     }
   }
 
@@ -567,9 +612,14 @@ export class ChatDetailComponent implements OnInit, OnDestroy {
     try {
       await firstValueFrom(this.chatService.removeFeedback(chatId, message.id))
       this.chatState.setMessageFeedback(message.id, null)
-      this.toastService.showInfo($localize`Feedback removed.`)
+      this.toastService.showInfo(
+        $localize`:Robo|Toast shown after removing existing feedback:Feedback removed.`
+      )
     } catch (error) {
-      this.toastService.showError($localize`Error removing feedback`, error)
+      this.toastService.showError(
+        $localize`:Robo|Toast shown when removing feedback fails:Error removing feedback`,
+        error
+      )
     }
   }
 }
