@@ -1,4 +1,4 @@
-import { Component, Input } from '@angular/core'
+import { Component, EventEmitter, Input, Output } from '@angular/core'
 import { NgbTooltipModule } from '@ng-bootstrap/ng-bootstrap'
 import { NgxBootstrapIconsModule } from 'ngx-bootstrap-icons'
 
@@ -13,6 +13,7 @@ import { NgxBootstrapIconsModule } from 'ngx-bootstrap-icons'
       [ngbTooltip]="tooltip"
       [placement]="placement"
       [attr.aria-label]="ariaLabel || tooltip"
+      (click)="pressed.emit()"
     >
       <i-bs [name]="icon"></i-bs>
     </button>
@@ -54,4 +55,5 @@ export class IconActionButtonComponent {
   @Input({ required: true }) tooltip!: string
   @Input() ariaLabel = ''
   @Input() placement = 'bottom'
+  @Output() pressed = new EventEmitter<void>()
 }

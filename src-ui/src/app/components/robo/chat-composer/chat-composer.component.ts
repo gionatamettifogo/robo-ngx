@@ -11,24 +11,33 @@ import {
   ViewChild,
 } from '@angular/core'
 import { FormsModule } from '@angular/forms'
+import { NgbTooltipModule } from '@ng-bootstrap/ng-bootstrap'
 import { NgxBootstrapIconsModule } from 'ngx-bootstrap-icons'
+import { IconActionButtonComponent } from '../icon-action-button/icon-action-button.component'
 
 @Component({
   selector: 'pngx-robo-chat-composer',
   standalone: true,
-  imports: [CommonModule, FormsModule, NgxBootstrapIconsModule],
+  imports: [
+    CommonModule,
+    FormsModule,
+    IconActionButtonComponent,
+    NgbTooltipModule,
+    NgxBootstrapIconsModule,
+  ],
   template: `
-    <section class="robo-composer">
+    <section class="robo-composer" [class.robo-composer--multiline]="multiline">
       <div class="robo-composer-shell">
-        <div class="robo-composer-left">
-          <button
-            class="robo-composer-affordance"
-            type="button"
-            aria-label="Add attachment"
-            disabled
-          >
-            <i-bs name="plus"></i-bs>
-          </button>
+        <div
+          class="robo-composer-left"
+          [class.robo-composer-left--hidden]="multiline"
+        >
+          <pngx-robo-icon-action-button
+            icon="plus"
+            tooltip="Add files and more"
+            ariaLabel="Add files and more"
+            placement="top"
+          />
         </div>
 
         <div class="robo-composer-input-wrap">
@@ -45,16 +54,17 @@ import { NgxBootstrapIconsModule } from 'ngx-bootstrap-icons'
           ></textarea>
         </div>
 
-        <div class="robo-composer-right ms-auto">
-          <button
+        <div
+          class="robo-composer-right ms-auto"
+          [class.robo-composer-right--hidden]="multiline"
+        >
+          <pngx-robo-icon-action-button
             *ngIf="!showStopButton"
-            class="robo-composer-affordance"
-            type="button"
-            aria-label="Voice input"
-            disabled
-          >
-            <i-bs name="mic"></i-bs>
-          </button>
+            icon="mic"
+            tooltip="Dictate"
+            ariaLabel="Dictate"
+            placement="top"
+          />
           <button
             *ngIf="showStopButton"
             class="robo-send-button"
@@ -70,9 +80,55 @@ import { NgxBootstrapIconsModule } from 'ngx-bootstrap-icons'
             type="button"
             (click)="onSubmit()"
             [disabled]="submitDisabled"
+            ngbTooltip="Send prompt"
+            placement="top"
+            [class.robo-send-button--enabled]="!submitDisabled"
             aria-label="Send message"
           >
-            <i-bs name="arrow-up-circle-fill"></i-bs>
+            <i-bs name="arrow-up"></i-bs>
+          </button>
+        </div>
+      </div>
+
+      <div class="robo-composer-actions" *ngIf="multiline">
+        <div class="robo-composer-left">
+          <pngx-robo-icon-action-button
+            icon="plus"
+            tooltip="Add files and more"
+            ariaLabel="Add files and more"
+            placement="top"
+          />
+        </div>
+
+        <div class="robo-composer-right ms-auto">
+          <pngx-robo-icon-action-button
+            *ngIf="!showStopButton"
+            icon="mic"
+            tooltip="Dictate"
+            ariaLabel="Dictate"
+            placement="top"
+          />
+          <button
+            *ngIf="showStopButton"
+            class="robo-send-button"
+            type="button"
+            (click)="stop.emit()"
+            aria-label="Stop generation"
+          >
+            <i-bs name="stop-circle-fill"></i-bs>
+          </button>
+          <button
+            *ngIf="!showStopButton"
+            class="robo-send-button"
+            type="button"
+            (click)="onSubmit()"
+            [disabled]="submitDisabled"
+            ngbTooltip="Send prompt"
+            placement="top"
+            [class.robo-send-button--enabled]="!submitDisabled"
+            aria-label="Send message"
+          >
+            <i-bs name="arrow-up"></i-bs>
           </button>
         </div>
       </div>
@@ -95,6 +151,15 @@ import { NgxBootstrapIconsModule } from 'ngx-bootstrap-icons'
         min-height: 2.5rem;
       }
 
+      .robo-composer--multiline .robo-composer-shell {
+        align-items: flex-start;
+        padding-top: 0.25rem;
+      }
+
+      .robo-composer--multiline {
+        padding-bottom: 0.7rem;
+      }
+
       .robo-composer-textarea {
         flex: 1;
         min-height: 1.6rem;
@@ -109,6 +174,7 @@ import { NgxBootstrapIconsModule } from 'ngx-bootstrap-icons'
         line-height: 1.4;
         padding: 0;
         margin: 0;
+        text-align: left;
       }
 
       .robo-composer-textarea::placeholder {
@@ -122,16 +188,26 @@ import { NgxBootstrapIconsModule } from 'ngx-bootstrap-icons'
         gap: 0.35rem;
       }
 
-      .robo-composer-affordance {
-        width: 2rem;
-        height: 2rem;
-        border: 0;
-        border-radius: 999px;
-        background: transparent;
-        color: var(--bs-secondary-color);
-        display: inline-flex;
+      .robo-composer-left {
+        margin-left: -0.35rem;
+      }
+
+      .robo-composer-left--hidden,
+      .robo-composer-right--hidden {
+        visibility: hidden;
+        pointer-events: none;
+        width: 0;
+        min-width: 0;
+        overflow: hidden;
+        margin: 0;
+      }
+
+      .robo-composer-actions {
+        display: flex;
         align-items: center;
-        justify-content: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        margin-top: 0.45rem;
       }
 
       .robo-send-button {
@@ -139,18 +215,29 @@ import { NgxBootstrapIconsModule } from 'ngx-bootstrap-icons'
         height: 32px;
         border: 0;
         border-radius: 999px;
-        background: transparent;
-        color: var(--bs-body-color);
+        background: #dee2e6;
+        color: var(--bs-white, #fff);
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        font-size: 32px;
+        font-size: 18px;
         line-height: 1;
         padding: 0;
       }
 
+      .robo-send-button i-bs {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1;
+      }
+
+      .robo-send-button--enabled {
+        background: var(--bs-primary);
+      }
+
       .robo-send-button:disabled {
-        opacity: 0.45;
+        opacity: 1;
       }
 
       .robo-composer-input-wrap {
@@ -161,12 +248,17 @@ import { NgxBootstrapIconsModule } from 'ngx-bootstrap-icons'
         justify-content: center;
         min-height: 2rem;
       }
+
+      .robo-composer:not(.robo-composer--multiline) .robo-composer-input-wrap {
+        min-height: 2.25rem;
+      }
     `,
   ],
 })
 export class ChatComposerComponent implements AfterViewInit, OnChanges {
   @ViewChild('composerTextarea')
   private composerTextarea?: ElementRef<HTMLTextAreaElement>
+  private readonly singleLineHeightRem = 1.6
 
   @Input() value = ''
   @Input() disabled = false
@@ -177,6 +269,8 @@ export class ChatComposerComponent implements AfterViewInit, OnChanges {
   @Output() valueChange = new EventEmitter<string>()
   @Output() submit = new EventEmitter<void>()
   @Output() stop = new EventEmitter<void>()
+
+  multiline = false
 
   ngAfterViewInit(): void {
     queueMicrotask(() => this.autoResizeComposer())
@@ -210,6 +304,11 @@ export class ChatComposerComponent implements AfterViewInit, OnChanges {
 
     textarea.style.height = 'auto'
     textarea.style.height = `${Math.min(textarea.scrollHeight, 256)}px`
+    const rootFontSize = Number.parseFloat(
+      getComputedStyle(document.documentElement).fontSize
+    )
+    const singleLineHeight = this.singleLineHeightRem * rootFontSize
+    this.multiline = textarea.scrollHeight > singleLineHeight + 4
   }
 
   private onSubmit() {

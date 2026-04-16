@@ -34,6 +34,7 @@
                 icon="clipboard"
                 tooltip="Copy message"
                 ariaLabel="Copy user message"
+                (pressed)="copyMessage(message.content)"
               />
               <pngx-robo-icon-action-button
                 icon="trash"
@@ -73,6 +74,7 @@
                 icon="clipboard"
                 tooltip="Copy response"
                 ariaLabel="Copy response"
+                (pressed)="copyMessage(message.content)"
               />
               <pngx-robo-icon-action-button
                 icon="hand-thumbs-up"

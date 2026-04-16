@@ -12,6 +12,7 @@ import { MarkdownComponent } from 'ngx-markdown'
 import { Subject, takeUntil } from 'rxjs'
 import { ChatMessage, ChatMessageStatusPill } from 'src/app/data/chat'
 import { ChatStateService } from 'src/app/services/chat-state.service'
+import { ToastService } from 'src/app/services/toast.service'
 import { ChatComposerComponent } from '../chat-composer/chat-composer.component'
 import { IconActionButtonComponent } from '../icon-action-button/icon-action-button.component'
 
@@ -90,7 +91,7 @@ import { IconActionButtonComponent } from '../icon-action-button/icon-action-but
       .robo-user-bubble {
         width: fit-content;
         max-width: 100%;
-        border-radius: 1.25rem;
+        border-radius: 1.7rem;
         border: 0;
         box-shadow: none;
         background: #e9ecef;
@@ -293,6 +294,7 @@ import { IconActionButtonComponent } from '../icon-action-button/icon-action-but
 export class ChatDetailComponent implements OnInit, OnDestroy {
   private route = inject(ActivatedRoute)
   private router = inject(Router)
+  private toastService = inject(ToastService)
   private destroy$ = new Subject<void>()
   private initialPromptHandledForChatId: number | null = null
   private shouldStickToBottom = false
@@ -312,12 +314,7 @@ export class ChatDetailComponent implements OnInit, OnDestroy {
         return
       }
 
-      window.requestAnimationFrame(() => {
-        window.scrollTo({
-          top: document.documentElement.scrollHeight,
-          behavior: 'auto',
-        })
-      })
+      this.scrollToPageBottom()
     })
   }
 
@@ -329,13 +326,19 @@ export class ChatDetailComponent implements OnInit, OnDestroy {
 
   async sendMessage() {
     this.shouldStickToBottom = true
-    window.requestAnimationFrame(() => {
-      window.scrollTo({
-        top: document.documentElement.scrollHeight,
-        behavior: 'auto',
-      })
-    })
+    this.scrollToPageBottom()
     await this.chatState.sendMessage(this.chatState.snapshot.pendingInput)
+  }
+
+  async copyMessage(content: string): Promise<void> {
+    const text = content ?? ''
+
+    try {
+      await this.writeToClipboard(text)
+      this.toastService.showInfo($localize`Copied to clipboard`)
+    } catch (error) {
+      this.toastService.showError($localize`Error copying to clipboard`, error)
+    }
   }
 
   @HostListener('window:scroll')
@@ -396,9 +399,7 @@ export class ChatDetailComponent implements OnInit, OnDestroy {
   }
 
   thinkingToggleLabel(message: ChatMessage): string {
-    return message.status === 'streaming'
-      ? 'Thinking...'
-      : 'Thinking complete >'
+    return message.status === 'streaming' ? 'Thinking...' : 'Thinking complete'
   }
 
   shouldShowAssistantActions(message: ChatMessage): boolean {
@@ -457,5 +458,45 @@ export class ChatDetailComponent implements OnInit, OnDestroy {
     const viewportBottom = window.innerHeight + window.scrollY
     const documentBottom = document.documentElement.scrollHeight
     return documentBottom - viewportBottom < 80
+  }
+
+  private scrollToPageBottom() {
+    const scroll = () => {
+      window.scrollTo({
+        top: document.documentElement.scrollHeight,
+        behavior: 'auto',
+      })
+    }
+
+    scroll()
+    window.requestAnimationFrame(() => {
+      scroll()
+      window.requestAnimationFrame(scroll)
+    })
+  }
+
+  private async writeToClipboard(text: string): Promise<void> {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text)
+      return
+    }
+
+    const textarea = document.createElement('textarea')
+    textarea.value = text
+    textarea.setAttribute('readonly', '')
+    textarea.style.position = 'fixed'
+    textarea.style.opacity = '0'
+    textarea.style.pointerEvents = 'none'
+
+    document.body.appendChild(textarea)
+    textarea.select()
+    textarea.setSelectionRange(0, textarea.value.length)
+
+    const copied = document.execCommand('copy')
+    document.body.removeChild(textarea)
+
+    if (!copied) {
+      throw new Error('Clipboard copy failed')
+    }
   }
 }
