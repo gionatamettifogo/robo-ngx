@@ -5,24 +5,26 @@
         <a routerLink="/chats" class="text-decoration-none" i18n="Robo|Back link from chat detail to chats list">← Back to Chats</a>
       </div>
 
-      <div class="d-flex justify-content-between align-items-start mb-3 robo-chat-header">
+      <div class="d-flex mb-3 robo-chat-header">
         <div class="robo-chat-heading">
-          <h2 class="mb-0">{{ state.chat?.title || chatFallbackTitle }}</h2>
+          <div class="robo-chat-title-row">
+            <h2 class="mb-0 robo-chat-title">{{ state.chat?.title || chatFallbackTitle }}</h2>
+            <div class="robo-chat-title-actions">
+              <pngx-robo-icon-action-button
+                icon="pencil"
+                [tooltip]="renameChatTooltip"
+                [ariaLabel]="renameChatAriaLabel"
+                (pressed)="renameChat()"
+              />
+              <pngx-robo-icon-action-button
+                icon="trash"
+                [tooltip]="deleteChatTooltip"
+                [ariaLabel]="deleteChatAriaLabel"
+                (pressed)="deleteChat()"
+              />
+            </div>
+          </div>
           <small class="text-muted robo-chat-model-label">{{ state.chat?.agent_id }}</small>
-        </div>
-        <div class="robo-chat-title-actions">
-          <pngx-robo-icon-action-button
-            icon="pencil"
-            [tooltip]="renameChatTooltip"
-            [ariaLabel]="renameChatAriaLabel"
-            (pressed)="renameChat()"
-          />
-          <pngx-robo-icon-action-button
-            icon="trash"
-            [tooltip]="deleteChatTooltip"
-            [ariaLabel]="deleteChatAriaLabel"
-            (pressed)="deleteChat()"
-          />
         </div>
       </div>
 

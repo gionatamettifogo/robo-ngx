@@ -85,6 +85,20 @@ import { IconActionButtonComponent } from '../icon-action-button/icon-action-but
         display: flex;
         flex-direction: column;
         align-items: flex-start;
+        min-width: 0;
+        flex: 1;
+      }
+
+      .robo-chat-title-row {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+      }
+
+      .robo-chat-title {
+        min-width: 0;
       }
 
       .robo-chat-model-label {
@@ -96,6 +110,7 @@ import { IconActionButtonComponent } from '../icon-action-button/icon-action-but
         display: inline-flex;
         align-items: center;
         gap: 0.15rem;
+        flex-shrink: 0;
         opacity: 0;
         pointer-events: none;
         transition: opacity 120ms ease;
