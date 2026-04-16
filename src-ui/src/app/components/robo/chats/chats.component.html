@@ -1,11 +1,4 @@
 <div class="robo-chats-page">
-  <header class="robo-page-header">
-    <div class="robo-page-brand fw-semibold small">indena-legal</div>
-    <button class="robo-icon-button" type="button" disabled aria-label="More options">
-      <i-bs name="three-dots"></i-bs>
-    </button>
-  </header>
-
   <div class="robo-page-title h3 mb-4 text-center">How can I help you today?</div>
 
   <pngx-robo-chat-composer
@@ -15,27 +8,6 @@
     [submitDisabled]="creating || !prompt.trim()"
     (submit)="createChat()"
   />
-
-  <div class="robo-tabs">
-    <button
-      class="robo-tab"
-      type="button"
-      [ngClass]="{ active: activeTab === 'chats' }"
-      (click)="activeTab = 'chats'"
-    >
-      Chats
-    </button>
-    <button
-      class="robo-tab"
-      type="button"
-      [ngClass]="{ active: activeTab === 'sources' }"
-      disabled
-    >
-      Sources
-    </button>
-  </div>
-
-  <div *ngIf="loading" class="robo-loading-state text-body-secondary">Loading chats...</div>
 
   <div *ngIf="!loading && chatItems.length === 0" class="robo-empty-state text-body-secondary">
     No chats yet.
@@ -58,47 +30,20 @@
 
       <div
         class="robo-chat-meta"
-        [ngClass]="{ 'robo-chat-meta--menu-open': openMenuChatId === item.chat.id }"
       >
-        <div
-          ngbDropdown
-          class="robo-chat-menu"
-          container="body"
-          (openChange)="setMenuOpen(item.chat.id, $event)"
-        >
-          <button
-            class="robo-icon-button"
-            type="button"
-            ngbDropdownToggle
-            aria-label="Chat actions"
-            (click)="$event.stopPropagation()"
-          >
-            <i-bs name="three-dots"></i-bs>
-          </button>
-          <div ngbDropdownMenu class="shadow">
-            <button
-              ngbDropdownItem
-              type="button"
-              (click)="renameChat(item.chat, $event)"
-            >
-              Rename
-            </button>
-            <button
-              ngbDropdownItem
-              type="button"
-              (click)="togglePinned(item.chat, $event)"
-            >
-              {{ item.chat.pinned ? 'Unpin' : 'Pin' }}
-            </button>
-            <button
-              ngbDropdownItem
-              type="button"
-              class="text-danger"
-              (click)="deleteChat(item.chat, $event)"
-            >
-              Delete
-            </button>
-          </div>
+        <div class="robo-chat-actions">
+          <pngx-robo-icon-action-button
+            icon="pencil"
+            [tooltip]="renameChatTooltip"
+            [ariaLabel]="renameChatAriaLabel"
+            (pressed)="renameChat(item.chat, $event)"
+          />
+          <pngx-robo-icon-action-button
+            icon="trash"
+            [tooltip]="deleteChatTooltip"
+            [ariaLabel]="deleteChatAriaLabel"
+            (pressed)="deleteChat(item.chat, $event)"
+          />
         </div>
 
         <div class="robo-chat-time small text-body-secondary">{{ lastMessageTime(item) }}</div>

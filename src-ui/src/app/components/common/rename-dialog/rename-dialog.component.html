@@ -1,0 +1,33 @@
+<div class="modal-header border-0">
+  <h4 class="modal-title">{{ title }}</h4>
+  <button
+    type="button"
+    class="btn-close"
+    [attr.aria-label]="closeLabel"
+    (click)="close()"
+  ></button>
+</div>
+
+<div class="modal-body">
+  <input
+    id="robo-rename-value"
+    type="text"
+    class="form-control"
+    [(ngModel)]="value"
+    (keydown.enter)="submit()"
+  />
+</div>
+
+<div class="modal-footer border-0">
+  <button type="button" class="btn btn-outline-secondary" (click)="close()">
+    {{ cancelLabel }}
+  </button>
+  <button
+    type="button"
+    class="btn btn-primary"
+    [disabled]="!value.trim()"
+    (click)="submit()"
+  >
+    {{ confirmLabel }}
+  </button>
+</div>

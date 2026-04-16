@@ -136,6 +136,14 @@ class TestApiChats(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
+    def test_can_delete_own_chat(self):
+        chat = Chat.objects.create(owner=self.user, title="Mine")
+
+        response = self.client.delete(f"/api/chats/{chat.id}/")
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(Chat.objects.filter(id=chat.id).exists())
+
     @mock.patch("documents.chat_streaming.AgentClient.stream_chat")
     def test_stream_endpoint_persists_completed_assistant_message(
         self,
@@ -256,6 +264,57 @@ class TestApiChats(APITestCase):
         self.assertFalse(
             Feedback.objects.filter(owner=self.user, message=message).exists(),
         )
+
+    def test_can_delete_user_message_and_following_assistant_message(self):
+        chat = Chat.objects.create(owner=self.user, title="Chat")
+        first = ChatMessage.objects.create(
+            chat=chat,
+            role=ChatMessage.Role.USER,
+            status=ChatMessage.Status.COMPLETED,
+            content="first",
+        )
+        second = ChatMessage.objects.create(
+            chat=chat,
+            role=ChatMessage.Role.ASSISTANT,
+            status=ChatMessage.Status.COMPLETED,
+            content="reply",
+        )
+        third = ChatMessage.objects.create(
+            chat=chat,
+            role=ChatMessage.Role.USER,
+            status=ChatMessage.Status.COMPLETED,
+            content="later",
+        )
+
+        response = self.client.delete(f"/api/chats/{chat.id}/messages/{first.id}/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["deleted_message_ids"], [first.id, second.id])
+        self.assertFalse(ChatMessage.objects.filter(id=first.id).exists())
+        self.assertFalse(ChatMessage.objects.filter(id=second.id).exists())
+        self.assertTrue(ChatMessage.objects.filter(id=third.id).exists())
+
+    def test_delete_user_message_does_not_delete_following_user_message(self):
+        chat = Chat.objects.create(owner=self.user, title="Chat")
+        first = ChatMessage.objects.create(
+            chat=chat,
+            role=ChatMessage.Role.USER,
+            status=ChatMessage.Status.COMPLETED,
+            content="first",
+        )
+        second = ChatMessage.objects.create(
+            chat=chat,
+            role=ChatMessage.Role.USER,
+            status=ChatMessage.Status.COMPLETED,
+            content="second",
+        )
+
+        response = self.client.delete(f"/api/chats/{chat.id}/messages/{first.id}/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["deleted_message_ids"], [first.id])
+        self.assertFalse(ChatMessage.objects.filter(id=first.id).exists())
+        self.assertTrue(ChatMessage.objects.filter(id=second.id).exists())
 
     def test_feedback_post_updates_existing_feedback(self):
         chat = Chat.objects.create(owner=self.user, title="Chat")

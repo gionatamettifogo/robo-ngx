@@ -10,11 +10,13 @@ import { NgxBootstrapIconsModule } from 'ngx-bootstrap-icons'
     <button
       class="robo-icon-action-button"
       [class.robo-icon-action-button--selected]="selected"
+      [class.robo-icon-action-button--disabled]="disabled"
       type="button"
       [ngbTooltip]="tooltip"
       [placement]="placement"
       [attr.aria-label]="ariaLabel || tooltip"
-      (click)="pressed.emit()"
+      [disabled]="disabled"
+      (click)="onClick($event)"
     >
       <i-bs [name]="icon"></i-bs>
     </button>
@@ -46,6 +48,16 @@ import { NgxBootstrapIconsModule } from 'ngx-bootstrap-icons'
         color: var(--bs-primary);
       }
 
+      .robo-icon-action-button--disabled {
+        color: var(--bs-secondary-color);
+        opacity: 0.5;
+        cursor: default;
+      }
+
+      .robo-icon-action-button--disabled:hover {
+        color: var(--bs-secondary-color);
+      }
+
       .robo-icon-action-button i-bs {
         display: inline-flex;
         align-items: center;
@@ -61,5 +73,14 @@ export class IconActionButtonComponent {
   @Input() ariaLabel = ''
   @Input() placement = 'bottom'
   @Input() selected = false
+  @Input() disabled = false
   @Output() pressed = new EventEmitter<void>()
+
+  onClick(event: MouseEvent) {
+    event.stopPropagation()
+    if (this.disabled) {
+      return
+    }
+    this.pressed.emit()
+  }
 }

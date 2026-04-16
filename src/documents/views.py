@@ -26,6 +26,7 @@ from django.contrib.auth.models import User
 from django.contrib.contenttypes.models import ContentType
 from django.core.cache import cache
 from django.db import connections
+from django.db import transaction
 from django.db.migrations.loader import MigrationLoader
 from django.db.migrations.recorder import MigrationRecorder
 from django.db.models import Case
@@ -36,6 +37,7 @@ from django.db.models import Max
 from django.db.models import Model
 from django.db.models import OrderBy
 from django.db.models import Prefetch
+from django.db.models import Q
 from django.db.models import Sum
 from django.db.models import When
 from django.db.models.functions import Length
@@ -1574,7 +1576,7 @@ class ChatViewSet(ModelViewSet, PassUserMixin):
     serializer_class = ChatSerializer
     pagination_class = StandardPagination
     permission_classes = (IsAuthenticated, PaperlessObjectPermissions)
-    http_method_names = ["get", "post", "patch", "delete", "head", "options"]
+    http_method_names = ["get", "post", "put", "patch", "delete", "head", "options"]
 
     def get_queryset(self):
         return (
@@ -1600,9 +1602,6 @@ class ChatViewSet(ModelViewSet, PassUserMixin):
 
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)
-
-    def destroy(self, request, *args, **kwargs):
-        return Response(status=405)
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data, user=request.user)
@@ -1664,8 +1663,47 @@ class ChatViewSet(ModelViewSet, PassUserMixin):
 
     @action(
         detail=True,
+        methods=["delete"],
+        url_path=r"messages/(?P<message_id>\d+)",
+    )
+    def delete_message(self, request, pk=None, message_id=None):
+        # ROBO: Deletes a user message and its immediately following assistant reply.
+        chat = self.get_object()
+        message = get_object_or_404(chat.messages, pk=message_id)
+
+        if message.role != ChatMessage.Role.USER:
+            raise ValidationError(
+                _("Only user messages can be deleted from the chat detail view."),
+            )
+
+        next_message = (
+            chat.messages.filter(
+                Q(created_at__gt=message.created_at)
+                | (Q(created_at=message.created_at) & Q(id__gt=message.id)),
+            )
+            .order_by("created_at", "id")
+            .first()
+        )
+
+        deleted_ids = [message.id]
+        if next_message and next_message.role == ChatMessage.Role.ASSISTANT:
+            deleted_ids.append(next_message.id)
+
+        with transaction.atomic():
+            chat.messages.filter(id__in=deleted_ids).delete()
+            chat.last_message_at = (
+                chat.messages.order_by("-created_at", "-id")
+                .values_list("created_at", flat=True)
+                .first()
+            )
+            chat.save(update_fields=["last_message_at", "updated_at"])
+
+        return Response({"deleted_message_ids": deleted_ids})
+
+    @action(
+        detail=True,
         methods=["post", "delete"],
-        url_path=r"messages/(?P<message_id>[^/.]+)/feedback",
+        url_path=r"messages/(?P<message_id>\d+)/feedback",
     )
     def feedback(self, request, pk=None, message_id=None):
         # ROBO: Per-message assistant feedback endpoint used by the chat detail UI.

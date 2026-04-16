@@ -49,6 +49,15 @@ export class ChatService extends AbstractPaperlessService<Chat> {
     )
   }
 
+  deleteMessage(
+    chatId: number,
+    messageId: number
+  ): Observable<{ deleted_message_ids: number[] }> {
+    return this.http.delete<{ deleted_message_ids: number[] }>(
+      this.getResourceUrl(chatId, `messages/${messageId}`)
+    )
+  }
+
   async streamMessage(params: {
     chatId: number
     content: string

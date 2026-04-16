@@ -1,14 +1,17 @@
-import { NgClass, NgFor, NgIf } from '@angular/common'
+import { NgFor, NgIf } from '@angular/common'
 import { Component, inject, OnInit } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { Router } from '@angular/router'
-import { NgbDropdownModule } from '@ng-bootstrap/ng-bootstrap'
+import { NgbModal } from '@ng-bootstrap/ng-bootstrap'
 import { NgxBootstrapIconsModule } from 'ngx-bootstrap-icons'
 import { firstValueFrom } from 'rxjs'
 import { Chat, ChatMessage } from 'src/app/data/chat'
 import { ChatStateService } from 'src/app/services/chat-state.service'
 import { ChatService } from 'src/app/services/rest/chat.service'
+import { ToastService } from 'src/app/services/toast.service'
+import { RenameDialogComponent } from '../../common/rename-dialog/rename-dialog.component'
 import { ChatComposerComponent } from '../chat-composer/chat-composer.component'
+import { IconActionButtonComponent } from '../icon-action-button/icon-action-button.component'
 
 interface ChatListItem {
   chat: Chat
@@ -21,10 +24,9 @@ interface ChatListItem {
   imports: [
     ChatComposerComponent,
     FormsModule,
-    NgClass,
+    IconActionButtonComponent,
     NgFor,
     NgIf,
-    NgbDropdownModule,
     NgxBootstrapIconsModule,
   ],
   styles: [
@@ -32,56 +34,13 @@ interface ChatListItem {
       .robo-chats-page {
         max-width: 920px;
         margin: 0 auto;
-        padding: 1.5rem 1rem 2rem;
+        padding: 8rem 1rem 2rem;
       }
 
-      .robo-page-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 1rem;
-        margin-bottom: 3.5rem;
-      }
-
-      .robo-icon-button {
-        width: 2.25rem;
-        height: 2.25rem;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        border: 0;
-        border-radius: 999px;
-        background: transparent;
-        color: var(--bs-secondary-color);
-      }
-
-      .robo-icon-button.dropdown-toggle::after {
-        display: none;
-      }
-
-      .robo-tabs {
-        display: inline-flex;
-        gap: 0.25rem;
-        padding: 0.2rem;
-        border-radius: 999px;
-        background: var(--bs-tertiary-bg);
-        margin: 1.4rem 0 0.85rem;
-      }
-
-      .robo-tab {
-        border: 0;
-        background: transparent;
-        border-radius: 999px;
-        padding: 0.4rem 0.8rem;
-        font-size: 0.875rem;
-        font-weight: 600;
-        color: var(--bs-secondary-color);
-      }
-
-      .robo-tab.active {
-        background: var(--bs-body-bg);
-        color: var(--bs-body-color);
-        box-shadow: 0 1px 2px rgba(33, 37, 41, 0.08);
+      .robo-chat-list,
+      .robo-empty-state,
+      .robo-loading-state {
+        margin-top: 3.5rem;
       }
 
       .robo-chat-row {
@@ -95,6 +54,7 @@ interface ChatListItem {
         background: transparent;
         text-align: left;
         padding: 0.9rem 0.5rem;
+        cursor: pointer;
         transition: background-color 120ms ease;
       }
 
@@ -134,18 +94,21 @@ interface ChatListItem {
         display: flex;
         align-items: center;
         justify-content: flex-end;
-        width: 5.5rem;
-        min-width: 5.5rem;
+        width: 6rem;
+        min-width: 6rem;
         margin-left: auto;
         position: relative;
       }
 
       .robo-chat-time,
-      .robo-chat-menu {
+      .robo-chat-actions {
         transition: opacity 120ms ease;
       }
 
-      .robo-chat-menu {
+      .robo-chat-actions {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.15rem;
         opacity: 0;
         position: absolute;
         inset: 50% 0 auto auto;
@@ -153,14 +116,12 @@ interface ChatListItem {
         pointer-events: none;
       }
 
-      .robo-chat-row:hover .robo-chat-time,
-      .robo-chat-meta--menu-open .robo-chat-time {
+      .robo-chat-row:hover .robo-chat-time {
         opacity: 0;
         pointer-events: none;
       }
 
-      .robo-chat-row:hover .robo-chat-menu,
-      .robo-chat-meta--menu-open .robo-chat-menu {
+      .robo-chat-row:hover .robo-chat-actions {
         opacity: 1;
         pointer-events: auto;
       }
@@ -186,14 +147,21 @@ export class ChatsComponent implements OnInit {
   private chatService = inject(ChatService)
   private chatState = inject(ChatStateService)
   private router = inject(Router)
+  private modalService = inject(NgbModal)
+  private toastService = inject(ToastService)
 
   chatItems: ChatListItem[] = []
   loading = false
   creating = false
-  activeTab: 'chats' | 'sources' = 'chats'
   prompt = ''
   thinkingMode: 'regular' | 'extended' = 'regular'
-  openMenuChatId: number | null = null
+  readonly renameChatTooltip = $localize`:Robo|Tooltip for renaming a chat from the chats list:Rename chat`
+  readonly renameChatAriaLabel = $localize`:Robo|Aria label for renaming a chat from the chats list:Rename chat`
+  readonly deleteChatTooltip = $localize`:Robo|Tooltip for deleting a chat from the chats list:Delete chat`
+  readonly deleteChatAriaLabel = $localize`:Robo|Aria label for deleting a chat from the chats list:Delete chat`
+  readonly deleteChatSuccess = $localize`:Robo|Toast shown after deleting a chat from the chats list:Chat deleted.`
+  readonly deleteChatError = $localize`:Robo|Toast shown when deleting a chat from the chats list fails:Error deleting chat`
+  readonly renameChatError = $localize`:Robo|Toast shown when renaming a chat from the chats list fails:Error renaming chat`
 
   ngOnInit(): void {
     void this.reload()
@@ -252,15 +220,25 @@ export class ChatsComponent implements OnInit {
 
   async renameChat(chat: Chat, event?: Event) {
     event?.stopPropagation()
-    const nextTitle = window.prompt('Rename chat', chat.title)?.trim()
+    const modal = this.modalService.open(RenameDialogComponent, {
+      centered: true,
+    })
+    modal.componentInstance.value = chat.title
+
+    const nextTitle = (await modal.result.catch(() => null)) as string | null
     if (!nextTitle || nextTitle === chat.title) {
       return
     }
 
-    await this.saveChat({
-      ...chat,
-      title: nextTitle,
-    })
+    try {
+      await this.saveChat({
+        ...chat,
+        title: nextTitle,
+      })
+      window.location.reload()
+    } catch (error) {
+      this.toastService.showError(this.renameChatError, error)
+    }
   }
 
   async togglePinned(chat: Chat, event?: Event) {
@@ -273,20 +251,17 @@ export class ChatsComponent implements OnInit {
 
   async deleteChat(chat: Chat, event?: Event) {
     event?.stopPropagation()
-    if (!window.confirm(`Delete "${chat.title}"?`)) {
-      return
+    try {
+      await firstValueFrom(this.chatService.delete(chat))
+      this.chatItems = this.chatItems.filter((item) => item.chat.id !== chat.id)
+      this.toastService.showInfo(this.deleteChatSuccess)
+    } catch (error) {
+      this.toastService.showError(this.deleteChatError, error)
     }
-
-    await firstValueFrom(this.chatService.delete(chat))
-    this.chatItems = this.chatItems.filter((item) => item.chat.id !== chat.id)
   }
 
   openChat(chatId: number) {
     void this.router.navigate(['/chats', chatId])
-  }
-
-  setMenuOpen(chatId: number, isOpen: boolean) {
-    this.openMenuChatId = isOpen ? chatId : null
   }
 
   lastMessagePreview(item: ChatListItem): string {

@@ -19,6 +19,7 @@ import {
   FeedbackDialogComponent,
   FeedbackDialogResult,
 } from '../../common/feedback-dialog/feedback-dialog.component'
+import { RenameDialogComponent } from '../../common/rename-dialog/rename-dialog.component'
 import { ChatComposerComponent } from '../chat-composer/chat-composer.component'
 import { IconActionButtonComponent } from '../icon-action-button/icon-action-button.component'
 
@@ -70,6 +71,39 @@ import { IconActionButtonComponent } from '../icon-action-button/icon-action-but
 
       .robo-chat-detail-composer {
         width: 100%;
+      }
+
+      .robo-chat-detail-note {
+        margin-top: 0.5rem;
+        text-align: center;
+        color: var(--bs-secondary-color);
+        font-size: 0.75rem;
+        line-height: 1.35;
+      }
+
+      .robo-chat-heading {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .robo-chat-model-label {
+        display: block;
+        margin-top: 0.15rem;
+      }
+
+      .robo-chat-title-actions {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.15rem;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 120ms ease;
+      }
+
+      .robo-chat-header:hover .robo-chat-title-actions {
+        opacity: 1;
+        pointer-events: auto;
       }
 
       .robo-status-strip {
@@ -311,7 +345,14 @@ export class ChatDetailComponent implements OnInit, OnDestroy {
   // ROBO: Chat-detail-specific localized labels kept here so Robo strings are
   // isolated from upstream Paperless templates and easier to merge.
   readonly chatFallbackTitle = $localize`:Robo|Fallback title for chat detail page:Chat`
-  readonly composerPlaceholder = $localize`:Robo|Placeholder for chat composer on chat detail page:Come posso aiutarti oggi?`
+  readonly composerNote = $localize`:Robo|Small disclaimer shown below the chat detail composer:AI can make mistakes, check important information.`
+  readonly renameChatTooltip = $localize`:Robo|Tooltip for renaming a chat from the chat detail header:Rename chat`
+  readonly renameChatAriaLabel = $localize`:Robo|Aria label for renaming a chat from the chat detail header:Rename chat`
+  readonly deleteChatTooltip = $localize`:Robo|Tooltip for deleting a chat from the chat detail header:Delete chat`
+  readonly deleteChatAriaLabel = $localize`:Robo|Aria label for deleting a chat from the chat detail header:Delete chat`
+  readonly deleteChatSuccess = $localize`:Robo|Toast shown after deleting a chat from the chat detail header:Chat deleted.`
+  readonly deleteChatError = $localize`:Robo|Toast shown when deleting a chat from the chat detail header fails:Error deleting chat`
+  readonly renameChatError = $localize`:Robo|Toast shown when renaming a chat from the chat detail header fails:Error renaming chat`
   readonly copyMessageTooltip = $localize`:Robo|Tooltip for copying a user message:Copy message`
   readonly copyUserMessageAriaLabel = $localize`:Robo|Aria label for copying a user message:Copy user message`
   readonly deleteMessageTooltip = $localize`:Robo|Tooltip for deleting a user message:Delete message`
@@ -327,6 +368,8 @@ export class ChatDetailComponent implements OnInit, OnDestroy {
   readonly badResponseTooltip = $localize`:Robo|Tooltip for negative assistant feedback:Bad response`
   readonly thinkingStreamingLabel = $localize`:Robo|Thinking label while assistant response is streaming:Thinking...`
   readonly thinkingCompleteLabel = $localize`:Robo|Thinking label when assistant response is complete:Thinking complete`
+  readonly deleteMessageSuccess = $localize`:Robo|Toast shown after deleting a user message and paired response:Message deleted.`
+  readonly deleteMessageError = $localize`:Robo|Toast shown when deleting a user message fails:Error deleting message`
 
   ngOnInit(): void {
     this.route.paramMap.pipe(takeUntil(this.destroy$)).subscribe((params) => {
@@ -357,6 +400,51 @@ export class ChatDetailComponent implements OnInit, OnDestroy {
     await this.chatState.sendMessage(this.chatState.snapshot.pendingInput)
   }
 
+  async renameChat(): Promise<void> {
+    const chat = this.chatState.snapshot.chat
+    if (!chat) {
+      return
+    }
+
+    const modal = this.modalService.open(RenameDialogComponent, {
+      centered: true,
+    })
+    modal.componentInstance.value = chat.title
+
+    const nextTitle = (await modal.result.catch(() => null)) as string | null
+    if (!nextTitle || nextTitle === chat.title) {
+      return
+    }
+
+    try {
+      await firstValueFrom(
+        this.chatService.update({
+          ...chat,
+          title: nextTitle,
+        })
+      )
+      window.location.reload()
+    } catch (error) {
+      this.toastService.showError(this.renameChatError, error)
+    }
+  }
+
+  async deleteChat(): Promise<void> {
+    const chat = this.chatState.snapshot.chat
+    if (!chat) {
+      return
+    }
+
+    try {
+      await firstValueFrom(this.chatService.delete(chat))
+      this.toastService.showInfo(this.deleteChatSuccess)
+      this.chatState.reset()
+      await this.router.navigate(['/chats'])
+    } catch (error) {
+      this.toastService.showError(this.deleteChatError, error)
+    }
+  }
+
   async copyMessage(content: string): Promise<void> {
     const text = content ?? ''
 
@@ -370,6 +458,23 @@ export class ChatDetailComponent implements OnInit, OnDestroy {
         $localize`:Robo|Toast shown when copying to clipboard fails:Error copying to clipboard`,
         error
       )
+    }
+  }
+
+  async deleteMessage(message: ChatMessage): Promise<void> {
+    const chatId = this.chatState.snapshot.chat?.id
+    if (chatId == null) {
+      return
+    }
+
+    try {
+      const response = await firstValueFrom(
+        this.chatService.deleteMessage(chatId, message.id)
+      )
+      this.chatState.removeMessages(response.deleted_message_ids)
+      this.toastService.showInfo(this.deleteMessageSuccess)
+    } catch (error) {
+      this.toastService.showError(this.deleteMessageError, error)
     }
   }
 

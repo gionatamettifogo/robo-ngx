@@ -50,6 +50,21 @@ export class ChatStateService {
     }))
   }
 
+  removeMessages(messageIds: number[]) {
+    const ids = new Set(messageIds)
+    const thinkingByMessageId = { ...this.snapshot.thinkingByMessageId }
+    for (const id of ids) {
+      delete thinkingByMessageId[id]
+    }
+
+    this.patchState({
+      messages: this.snapshot.messages.filter(
+        (message) => !ids.has(message.id)
+      ),
+      thinkingByMessageId,
+    })
+  }
+
   async loadChat(chatId: number): Promise<void> {
     this.patchState({ loading: true, error: null })
     try {

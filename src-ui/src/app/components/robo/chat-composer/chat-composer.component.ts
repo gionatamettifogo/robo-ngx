@@ -37,6 +37,7 @@ import { IconActionButtonComponent } from '../icon-action-button/icon-action-but
             tooltip="Add files and more"
             ariaLabel="Add files and more"
             placement="top"
+            [disabled]="true"
           />
         </div>
 
@@ -64,6 +65,7 @@ import { IconActionButtonComponent } from '../icon-action-button/icon-action-but
             tooltip="Dictate"
             ariaLabel="Dictate"
             placement="top"
+            [disabled]="true"
           />
           <button
             *ngIf="showStopButton"
@@ -97,6 +99,7 @@ import { IconActionButtonComponent } from '../icon-action-button/icon-action-but
             tooltip="Add files and more"
             ariaLabel="Add files and more"
             placement="top"
+            [disabled]="true"
           />
         </div>
 
@@ -107,6 +110,7 @@ import { IconActionButtonComponent } from '../icon-action-button/icon-action-but
             tooltip="Dictate"
             ariaLabel="Dictate"
             placement="top"
+            [disabled]="true"
           />
           <button
             *ngIf="showStopButton"
