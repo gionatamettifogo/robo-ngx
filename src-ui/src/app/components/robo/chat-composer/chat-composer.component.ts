@@ -69,12 +69,14 @@ import { IconActionButtonComponent } from '../icon-action-button/icon-action-but
           />
           <button
             *ngIf="showStopButton"
-            class="robo-send-button"
+            class="robo-send-button robo-send-button--stop"
             type="button"
             (click)="stop.emit()"
-            aria-label="Stop generation"
+            [ngbTooltip]="stopGenerationTooltip"
+            placement="top"
+            [attr.aria-label]="stopGenerationAriaLabel"
           >
-            <i-bs name="stop-circle-fill"></i-bs>
+            <i-bs name="stop-fill"></i-bs>
           </button>
           <button
             *ngIf="!showStopButton"
@@ -114,12 +116,14 @@ import { IconActionButtonComponent } from '../icon-action-button/icon-action-but
           />
           <button
             *ngIf="showStopButton"
-            class="robo-send-button"
+            class="robo-send-button robo-send-button--stop"
             type="button"
             (click)="stop.emit()"
-            aria-label="Stop generation"
+            [ngbTooltip]="stopGenerationTooltip"
+            placement="top"
+            [attr.aria-label]="stopGenerationAriaLabel"
           >
-            <i-bs name="stop-circle-fill"></i-bs>
+            <i-bs name="stop-fill"></i-bs>
           </button>
           <button
             *ngIf="!showStopButton"
@@ -229,6 +233,10 @@ import { IconActionButtonComponent } from '../icon-action-button/icon-action-but
         padding: 0;
       }
 
+      .robo-send-button--stop {
+        background: var(--bs-success);
+      }
+
       .robo-send-button i-bs {
         display: inline-flex;
         align-items: center;
@@ -263,6 +271,8 @@ export class ChatComposerComponent implements AfterViewInit, OnChanges {
   @ViewChild('composerTextarea')
   private composerTextarea?: ElementRef<HTMLTextAreaElement>
   private readonly singleLineHeightRem = 1.6
+  readonly stopGenerationTooltip = $localize`:Robo|Tooltip for stopping active chat generation:Stop generation`
+  readonly stopGenerationAriaLabel = $localize`:Robo|Aria label for stopping active chat generation:Stop generation`
 
   @Input() value = ''
   @Input() disabled = false

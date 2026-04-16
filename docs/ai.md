@@ -167,7 +167,7 @@ Paperless sends these upstream metadata fields:
 
 The session id currently uses:
 
--   `paperless-chat-{chat.id}`
+-   `robo-ngx-{chat.id}`
 
 The backend reads upstream SSE and converts it into normalized downstream NDJSON events.
 

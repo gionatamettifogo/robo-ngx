@@ -39,7 +39,7 @@ class AgentClient:
             )
 
         endpoint = urljoin(settings.AI_API_URL.rstrip("/") + "/", "chat/completions")
-        session_id = f"paperless-chat-{chat.id}"
+        session_id = f"robo-ngx-{chat.id}"
         payload = {
             "model": settings.AI_MODEL,
             "stream": True,
@@ -58,7 +58,7 @@ class AgentClient:
             "Authorization": f"Bearer {settings.AI_API_KEY}",
             "Accept": "text/event-stream",
             "Content-Type": "application/json",
-            "x-transport-id": "paperless-chat",
+            "x-transport-id": "robo-ngx",
         }
         state: dict[str, Any] = {
             "run_id": None,
