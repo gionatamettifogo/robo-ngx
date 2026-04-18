@@ -1,3 +1,6 @@
+from unittest.mock import MagicMock
+from unittest.mock import patch
+
 from django.test import SimpleTestCase
 
 from documents.chat_agent_client import AgentClient
@@ -74,3 +77,29 @@ class TestChatAgentClient(SimpleTestCase):
                 },
             ],
         )
+
+    @patch("documents.chat_agent_client.Token.objects.filter")
+    def test_get_user_api_token_returns_profile_token(self, mock_filter):
+        client = AgentClient()
+        user = MagicMock()
+        mock_filter.return_value.values_list.return_value.first.return_value = (
+            "user-token"
+        )
+
+        token = client._get_user_api_token(user)
+
+        self.assertEqual(token, "user-token")
+        mock_filter.assert_called_once_with(user=user)
+
+    @patch("documents.chat_agent_client.Token.objects.filter")
+    def test_get_user_api_token_returns_none_when_user_has_no_profile_token(
+        self,
+        mock_filter,
+    ):
+        client = AgentClient()
+        user = MagicMock()
+        mock_filter.return_value.values_list.return_value.first.return_value = None
+
+        token = client._get_user_api_token(user)
+
+        self.assertIsNone(token)

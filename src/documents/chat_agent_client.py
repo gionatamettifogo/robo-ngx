@@ -1,3 +1,7 @@
+#
+# chat_agent_client.py - Basic OpenAI-compatible client for chat agents
+#
+
 import json
 from collections.abc import Iterator
 from typing import Any
@@ -5,6 +9,7 @@ from urllib.parse import urljoin
 
 import httpx
 from django.conf import settings
+from rest_framework.authtoken.models import Token
 
 
 class AgentClientError(Exception):
@@ -40,35 +45,45 @@ class AgentClient:
 
         endpoint = urljoin(settings.AI_API_URL.rstrip("/") + "/", "chat/completions")
         session_id = f"robo-ngx-{chat.id:07d}"
+
         payload = {
-            "model": settings.AI_MODEL,
+            "model": agent_id,
             "stream": True,
             "stream_options": {"include_usage": True},
+            "user": user.username,
             "messages": messages,
             "metadata": {
+                "transport_id": "paperless-ngx",
+                "agent_id": agent_id,
+                "user_id": user.username,
                 "session_id": session_id,
-                "chat_id": chat.id,
-                "paperless_user_id": user.id,
-                "document_ids": document_ids,
-                "include_thinking": include_thinking,
+                # Not used for now:
+                # "document_ids": document_ids,
+                # "include_thinking": include_thinking,
             },
-            "conversation_id": session_id,
         }
+
         headers = {
             "Authorization": f"Bearer {settings.AI_API_KEY}",
             "Accept": "text/event-stream",
             "Content-Type": "application/json",
-            "x-transport-id": "robo-ngx",
+            # Help the agent to identify the request and authenticate the user via paperless auth
+            "X-Transport-Id": "paperless-ngx",
+            "X-Paperless-Url": settings.PAPERLESS_URL,
+            "X-Paperless-User": user.username,
+            "X-Paperless-Token": self._get_user_api_token(user),
         }
+
         state: dict[str, Any] = {
             "run_id": None,
-            "model": settings.AI_MODEL,
+            "model": agent_id,
             "usage": None,
             "finish_reason": "stop",
             "tool_calls": {},
         }
 
         timeout = httpx.Timeout(connect=10.0, read=None, write=30.0, pool=30.0)
+
         try:
             with (
                 httpx.Client(timeout=timeout) as client,
@@ -101,6 +116,9 @@ class AgentClient:
             "run_id": state["run_id"],
             "model": state["model"],
         }
+
+    def _get_user_api_token(self, user) -> str | None:
+        return Token.objects.filter(user=user).values_list("key", flat=True).first()
 
     def _extract_error_message(self, response: httpx.Response) -> str:
         try:
@@ -150,7 +168,6 @@ class AgentClient:
         state: dict[str, Any],
     ) -> list[dict[str, Any]]:
         events: list[dict[str, Any]] = []
-
         state["run_id"] = chunk.get("id") or state["run_id"]
         state["model"] = chunk.get("model") or state["model"]
         if chunk.get("usage"):
