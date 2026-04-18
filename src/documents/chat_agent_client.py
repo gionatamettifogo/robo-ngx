@@ -44,7 +44,7 @@ class AgentClient:
             )
 
         endpoint = urljoin(settings.AI_API_URL.rstrip("/") + "/", "chat/completions")
-        session_id = f"robo-ngx-{chat.id:07d}"
+        session_id = f"paperless-ngx-{chat.id:07d}"
 
         payload = {
             "model": agent_id,
@@ -69,6 +69,7 @@ class AgentClient:
             "Content-Type": "application/json",
             # Help the agent to identify the request and authenticate the user via paperless auth
             "X-Transport-Id": "paperless-ngx",
+            "X-Session-Id": session_id,
             "X-Paperless-Url": settings.PAPERLESS_URL,
             "X-Paperless-User": user.username,
             "X-Paperless-Token": self._get_user_api_token(user),
