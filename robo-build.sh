@@ -4,9 +4,16 @@ set -euo pipefail
 
 IMAGE_REPO="gionata/robo-ngx"
 PYPROJECT_FILE="pyproject.toml"
+DOCKER_PLATFORMS="linux/amd64,linux/arm64"
+BUILDX_BUILDER="robo-ngx-multiarch"
 
 if ! command -v docker >/dev/null 2>&1; then
 	echo "docker is required but was not found in PATH" >&2
+	exit 1
+fi
+
+if ! docker buildx version >/dev/null 2>&1; then
+	echo "docker buildx is required for multi-architecture builds" >&2
 	exit 1
 fi
 
@@ -26,21 +33,21 @@ fi
 
 IMAGE_TAG="${IMAGE_REPO}:${VERSION}"
 
-echo "Building ${IMAGE_TAG}"
-
-if [[ -n "${DOCKER_PLATFORM:-}" ]]; then
-  docker buildx build \
-    --platform "${DOCKER_PLATFORM}" \
-    --tag "${IMAGE_TAG}" \
-    --load \
-    .
-else
-  docker build \
-    --tag "${IMAGE_TAG}" \
-    .
+if ! docker buildx inspect "${BUILDX_BUILDER}" >/dev/null 2>&1; then
+  docker buildx create \
+    --name "${BUILDX_BUILDER}" \
+    --driver docker-container \
+    --use
 fi
 
-echo "Pushing ${IMAGE_TAG}"
-docker push "${IMAGE_TAG}"
+docker buildx inspect "${BUILDX_BUILDER}" --bootstrap >/dev/null
+
+echo "Building and pushing ${IMAGE_TAG} for ${DOCKER_PLATFORMS}"
+docker buildx build \
+  --builder "${BUILDX_BUILDER}" \
+  --platform "${DOCKER_PLATFORMS}" \
+  --tag "${IMAGE_TAG}" \
+  --push \
+  .
 
 echo "Done: ${IMAGE_TAG}"

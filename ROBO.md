@@ -15,9 +15,15 @@ For normal development, this is enough. The script starts everything you need:
 - Django development server on `8000`
 - document consumer
 - Celery worker
-- Angular dev server on `4200`
+- Angular dev server on `4200`, or the next free port if `4200` is busy
 
 Stop everything with `Ctrl+C`.
+
+To force a frontend port:
+
+```bash
+ROBO_FRONTEND_PORT=4201 ./robo-dev.sh
+```
 
 ## Backend
 
@@ -68,7 +74,7 @@ cd src-ui
 pnpm start
 ```
 
-The frontend dev server runs on `http://localhost:4200/` and expects the backend API at `http://localhost:8000/api/`.
+The frontend dev server normally runs on `http://localhost:4200/` and expects the backend API at `http://localhost:8000/api/`.
 
 ## Typical Workflow
 

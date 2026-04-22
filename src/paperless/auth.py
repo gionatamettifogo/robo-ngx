@@ -1,4 +1,5 @@
 import logging
+from urllib.parse import urljoin
 
 from allauth.mfa.adapter import get_adapter as get_mfa_adapter
 from django.conf import settings
@@ -35,10 +36,11 @@ class AngularApiAuthenticationOverride(authentication.BaseAuthentication):
     """
 
     def authenticate(self, request):
+        frontend_url = urljoin(settings.PAPERLESS_DEV_FRONTEND_URL, "/")
         if (
             settings.DEBUG
             and "Referer" in request.headers
-            and request.headers["Referer"].startswith("http://localhost:4200/")
+            and request.headers["Referer"].startswith(frontend_url)
         ):
             user = User.objects.filter(is_staff=True).first()
             logger.debug(f"Auto-Login with user {user}")

@@ -30,6 +30,48 @@ fi
 nvm use 20 >/dev/null
 
 declare -a PIDS=()
+BACKEND_PORT=8000
+FRONTEND_PORT="${ROBO_FRONTEND_PORT:-4200}"
+FRONTEND_PORT_WAS_SET=0
+if [[ -n "${ROBO_FRONTEND_PORT:-}" ]]; then
+	FRONTEND_PORT_WAS_SET=1
+fi
+
+port_in_use() {
+	local port=$1
+	(
+		: >"/dev/tcp/127.0.0.1/$port"
+	) >/dev/null 2>&1
+}
+
+if port_in_use "$FRONTEND_PORT"; then
+	if ((FRONTEND_PORT_WAS_SET)); then
+		echo "Frontend port $FRONTEND_PORT is already in use." >&2
+		echo "Stop the existing process or choose another port with ROBO_FRONTEND_PORT=4201 ./robo-dev.sh." >&2
+		exit 1
+	fi
+
+	for port in {4201..4220}; do
+		if ! port_in_use "$port"; then
+			FRONTEND_PORT="$port"
+			break
+		fi
+	done
+
+	if port_in_use "$FRONTEND_PORT"; then
+		echo "Frontend ports 4200-4220 are already in use." >&2
+		echo "Stop one of the existing processes or choose a free port with ROBO_FRONTEND_PORT=4300 ./robo-dev.sh." >&2
+		exit 1
+	fi
+fi
+
+if port_in_use "$BACKEND_PORT"; then
+	echo "Backend port $BACKEND_PORT is already in use." >&2
+	echo "A development stack may already be running. Use the existing http://localhost:$BACKEND_PORT/ server or stop the previous ./robo-dev.sh first." >&2
+	exit 1
+fi
+
+export PAPERLESS_DEV_FRONTEND_URL="http://localhost:$FRONTEND_PORT"
 
 cleanup() {
 	local status=$?
@@ -64,13 +106,16 @@ start_process() {
 }
 
 echo "Starting Paperless-ngx development stack..."
-echo "Backend:  http://localhost:8000/"
-echo "Frontend: http://localhost:4200/"
+echo "Backend:  http://localhost:$BACKEND_PORT/"
+echo "Frontend: http://localhost:$FRONTEND_PORT/"
+if [[ "$FRONTEND_PORT" != "4200" ]]; then
+	echo "Port 4200 is busy; using frontend port $FRONTEND_PORT."
+fi
 echo
 
 start_process backend bash -lc "cd src && exec ../.venv/bin/python manage.py runserver"
 start_process consumer bash -lc "cd src && exec ../.venv/bin/python manage.py document_consumer"
 start_process worker bash -lc "cd src && exec \"$CELERY_BIN\" --app paperless worker -l INFO"
-start_process frontend bash -lc "cd src-ui && exec pnpm start"
+start_process frontend bash -lc "cd src-ui && exec pnpm start -- --port \"$FRONTEND_PORT\""
 
 wait -n "${PIDS[@]}"

@@ -600,11 +600,15 @@ CORS_ALLOWED_ORIGINS = __get_list(
     "PAPERLESS_CORS_ALLOWED_HOSTS",
     ["http://localhost:8000"],
 )
+PAPERLESS_DEV_FRONTEND_URL = os.getenv(
+    "PAPERLESS_DEV_FRONTEND_URL",
+    "http://localhost:4200",
+)
 
 if DEBUG:
     # Allow access from the angular development server during debugging
-    CORS_ALLOWED_ORIGINS.append("http://localhost:4200")
-    CSRF_TRUSTED_ORIGINS.append("http://localhost:4200")
+    CORS_ALLOWED_ORIGINS.append(PAPERLESS_DEV_FRONTEND_URL)
+    CSRF_TRUSTED_ORIGINS.append(PAPERLESS_DEV_FRONTEND_URL)
 
 CORS_EXPOSE_HEADERS = [
     "Content-Disposition",

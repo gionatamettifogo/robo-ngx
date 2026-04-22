@@ -43,7 +43,10 @@ class PaperlessMailOAuth2Manager:
 
     @property
     def oauth_redirect_url(self) -> str:
-        return f"{'http://localhost:4200/' if settings.DEBUG else settings.BASE_URL}mail"  # e.g. "http://localhost:4200/mail" or "/mail"
+        frontend_url = (
+            settings.PAPERLESS_DEV_FRONTEND_URL if settings.DEBUG else settings.BASE_URL
+        )
+        return f"{frontend_url.rstrip('/')}/mail"  # e.g. "http://localhost:4200/mail" or "/mail"
 
     def get_gmail_authorization_url(self) -> str:
         return asyncio.run(
