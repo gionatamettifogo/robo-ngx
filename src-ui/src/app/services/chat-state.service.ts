@@ -25,6 +25,7 @@ const initialState: ChatConversationState = {
 })
 export class ChatStateService {
   private chatService = inject(ChatService)
+  private nextTemporaryMessageId = -1
 
   private stateSubject = new BehaviorSubject<ChatConversationState>(
     initialState
@@ -98,12 +99,38 @@ export class ChatStateService {
       return
     }
 
+    const userMessageId = this.nextTemporaryMessageId--
+    const assistantMessageId = this.nextTemporaryMessageId--
     const abortController = new AbortController()
     this.patchState({
+      messages: [
+        ...this.snapshot.messages,
+        {
+          id: userMessageId,
+          chat: chat.id,
+          role: 'user',
+          status: 'completed',
+          content: trimmed,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+        {
+          id: assistantMessageId,
+          chat: chat.id,
+          role: 'assistant',
+          status: 'streaming',
+          content: '',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          tool_calls: [],
+        },
+      ],
       pendingInput: '',
       error: null,
       activeStream: {
         chatId: chat.id,
+        userMessageId,
+        assistantMessageId,
         isStreaming: true,
         abortController,
       },
@@ -122,10 +149,7 @@ export class ChatStateService {
         this.markAssistantFailed('client_abort', 'Generation stopped.')
         return
       }
-      this.patchState({
-        error: 'Failed to send message.',
-        activeStream: null,
-      })
+      this.markAssistantFailed('upstream_error', 'Failed to send message.')
     }
   }
 
@@ -217,35 +241,70 @@ export class ChatStateService {
     event: Extract<ChatStreamEvent, { type: 'message_created' }>,
     submittedContent?: string
   ) {
-    const messages = [...this.snapshot.messages]
+    const activeStream = this.snapshot.activeStream
+    const optimisticUserMessageId = activeStream?.userMessageId
+    const optimisticAssistantMessageId = activeStream?.assistantMessageId
+    let messages: ChatMessage[] = this.snapshot.messages.map((message) => {
+      if (message.id === optimisticUserMessageId) {
+        return {
+          ...message,
+          id: event.userMessageId,
+          chat: event.chatId,
+          run_id: event.runId,
+          content: submittedContent ?? message.content,
+          updated_at: new Date().toISOString(),
+        }
+      }
+
+      if (message.id === optimisticAssistantMessageId) {
+        return {
+          ...message,
+          id: event.assistantMessageId,
+          chat: event.chatId,
+          run_id: event.runId,
+          status: 'streaming' as const,
+          updated_at: new Date().toISOString(),
+          tool_calls: message.tool_calls ?? [],
+        }
+      }
+
+      return message
+    })
+
     if (!messages.find((message) => message.id === event.userMessageId)) {
-      messages.push({
-        id: event.userMessageId,
-        chat: event.chatId,
-        role: 'user',
-        status: 'completed',
-        content: submittedContent ?? '',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        run_id: event.runId,
-      })
+      messages = [
+        ...messages,
+        {
+          id: event.userMessageId,
+          chat: event.chatId,
+          role: 'user',
+          status: 'completed',
+          content: submittedContent ?? '',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          run_id: event.runId,
+        },
+      ]
     }
     if (!messages.find((message) => message.id === event.assistantMessageId)) {
-      messages.push({
-        id: event.assistantMessageId,
-        chat: event.chatId,
-        role: 'assistant',
-        status: 'streaming',
-        content: '',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        run_id: event.runId,
-        tool_calls: [],
-      })
+      messages = [
+        ...messages,
+        {
+          id: event.assistantMessageId,
+          chat: event.chatId,
+          role: 'assistant',
+          status: 'streaming',
+          content: '',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          run_id: event.runId,
+          tool_calls: [],
+        },
+      ]
     }
 
-    const activeStream: ActiveStreamState = {
-      ...(this.snapshot.activeStream ?? {
+    const nextActiveStream: ActiveStreamState = {
+      ...(activeStream ?? {
         chatId: event.chatId,
         isStreaming: true,
       }),
@@ -257,7 +316,7 @@ export class ChatStateService {
 
     this.patchState({
       messages,
-      activeStream,
+      activeStream: nextActiveStream,
     })
   }
 

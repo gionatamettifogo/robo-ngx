@@ -5,17 +5,21 @@ from asgiref.sync import async_to_sync
 from django.contrib.auth.models import Permission
 from django.contrib.auth.models import User
 from rest_framework import status
+from rest_framework.test import APIRequestFactory
 from rest_framework.test import APITestCase
+from rest_framework.test import force_authenticate
 
 from documents.models import Chat
 from documents.models import ChatMessage
 from documents.models import Document
 from documents.models import Feedback
+from documents.views import ChatViewSet
 
 
 class TestApiChats(APITestCase):
     def setUp(self):
         super().setUp()
+        self.factory = APIRequestFactory()
         self.user = User.objects.create_user(username="chat-user")
         self.other_user = User.objects.create_user(username="other-user")
         self.user.user_permissions.add(
@@ -185,6 +189,45 @@ class TestApiChats(APITestCase):
         self.assertEqual(assistant.status, ChatMessage.Status.COMPLETED)
         self.assertEqual(assistant.content, "Hello world")
         self.assertEqual(assistant.total_tokens, 15)
+
+    @mock.patch("documents.chat_streaming.AgentClient.stream_chat")
+    def test_stream_endpoint_uses_async_iterator_for_asgi_requests(
+        self,
+        mock_stream_chat,
+    ):
+        def fake_stream(**kwargs):
+            yield {"type": "message_delta", "text": "Hello "}
+            yield {"type": "message_delta", "text": "world"}
+            yield {
+                "type": "message_completed",
+                "finish_reason": "stop",
+                "usage": {
+                    "prompt_tokens": 12,
+                    "completion_tokens": 3,
+                    "total_tokens": 15,
+                },
+                "run_id": "run_upstream",
+                "model": "default",
+            }
+
+        mock_stream_chat.side_effect = fake_stream
+        chat = Chat.objects.create(owner=self.user, title="Chat")
+        request = self.factory.post(
+            f"/api/chats/{chat.id}/messages/stream/",
+            {"content": "Hi"},
+            format="json",
+        )
+        request.scope = {}
+        force_authenticate(request, self.user)
+        view = ChatViewSet.as_view({"post": "stream"})
+
+        response = view(request, pk=chat.id)
+        lines = self._collect_stream_lines(response)
+        events = [json.loads(line) for line in lines]
+
+        self.assertTrue(hasattr(response.streaming_content, "__aiter__"))
+        self.assertEqual(events[0]["type"], "message_created")
+        self.assertEqual(events[-1]["type"], "message_completed")
 
     @mock.patch("documents.chat_streaming.AgentClient.stream_chat")
     def test_stream_endpoint_marks_failed_message_on_upstream_error(

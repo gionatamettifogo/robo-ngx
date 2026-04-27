@@ -19,6 +19,7 @@ from urllib.parse import urlparse
 import httpx
 import magic
 import pathvalidate
+from asgiref.sync import sync_to_async
 from celery import states
 from django.conf import settings
 from django.contrib.auth.models import Group
@@ -225,6 +226,16 @@ if settings.AUDIT_LOG_ENABLED:
     from auditlog.models import LogEntry
 
 logger = logging.getLogger("paperless.api")
+_STREAM_EVENT_END = object()
+
+
+def _next_stream_event_or_end(iterator):
+    return next(iterator, _STREAM_EVENT_END)
+
+
+def _request_uses_asgi(request) -> bool:
+    django_request = getattr(request, "_request", request)
+    return hasattr(django_request, "scope")
 
 
 class IndexView(TemplateView):
@@ -1639,19 +1650,33 @@ class ChatViewSet(ModelViewSet, PassUserMixin):
         validated = serializer.validated_data
         agent_id = validated.get("agent_id", "") or chat.agent_id or "default"
 
+        stream_iterator = stream_chat_message(
+            user=request.user,
+            chat=chat,
+            content=validated["content"],
+            document_ids=validated.get("document_ids", []),
+            agent_id=agent_id,
+            include_thinking=validated.get("include_thinking", False),
+        )
+
         def event_iter():
-            for event in stream_chat_message(
-                user=request.user,
-                chat=chat,
-                content=validated["content"],
-                document_ids=validated.get("document_ids", []),
-                agent_id=agent_id,
-                include_thinking=validated.get("include_thinking", False),
-            ):
+            for event in stream_iterator:
+                yield json.dumps(event, ensure_ascii=False) + "\n"
+
+        async def event_aiter():
+            while True:
+                event = await sync_to_async(
+                    _next_stream_event_or_end,
+                    thread_sensitive=True,
+                )(stream_iterator)
+                if event is _STREAM_EVENT_END:
+                    return
                 yield json.dumps(event, ensure_ascii=False) + "\n"
 
         response = StreamingHttpResponse(
-            streaming_content=event_iter(),
+            streaming_content=event_aiter()
+            if _request_uses_asgi(request)
+            else event_iter(),
             content_type="application/x-ndjson",
         )
         response["Cache-Control"] = "no-cache, no-transform"

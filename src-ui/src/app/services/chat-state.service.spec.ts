@@ -4,6 +4,11 @@ import { ChatService } from './rest/chat.service'
 
 describe('ChatStateService', () => {
   let service: ChatStateService
+  let chatService: {
+    streamMessage: jest.Mock
+    get: jest.Mock
+    listMessages: jest.Mock
+  }
 
   beforeEach(() => {
     TestBed.configureTestingModule({
@@ -21,7 +26,54 @@ describe('ChatStateService', () => {
     })
 
     service = TestBed.inject(ChatStateService)
+    chatService = TestBed.inject(ChatService) as unknown as {
+      streamMessage: jest.Mock
+      get: jest.Mock
+      listMessages: jest.Mock
+    }
     service.reset()
+  })
+
+  it('adds optimistic user and assistant placeholders immediately on send', async () => {
+    service['patchState']({
+      chat: {
+        id: 1,
+        title: 'Chat',
+        archived: false,
+        pinned: false,
+        agent_id: 'agent',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+    })
+    chatService.streamMessage.mockResolvedValue(undefined)
+
+    const sendPromise = service.sendMessage('hello')
+
+    expect(service.snapshot.messages).toEqual([
+      expect.objectContaining({
+        id: -1,
+        role: 'user',
+        content: 'hello',
+        status: 'completed',
+      }),
+      expect.objectContaining({
+        id: -2,
+        role: 'assistant',
+        content: '',
+        status: 'streaming',
+      }),
+    ])
+    expect(service.snapshot.activeStream).toEqual(
+      expect.objectContaining({
+        chatId: 1,
+        userMessageId: -1,
+        assistantMessageId: -2,
+        isStreaming: true,
+      })
+    )
+
+    await sendPromise
   })
 
   it('creates user and assistant placeholders on message_created', () => {
@@ -40,6 +92,56 @@ describe('ChatStateService', () => {
       10, 11,
     ])
     expect(service.snapshot.messages[1].status).toEqual('streaming')
+  })
+
+  it('reconciles optimistic placeholders when message_created arrives', async () => {
+    service['patchState']({
+      chat: {
+        id: 1,
+        title: 'Chat',
+        archived: false,
+        pinned: false,
+        agent_id: 'agent',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+    })
+    chatService.streamMessage.mockImplementation(async ({ onEvent }) => {
+      onEvent({
+        type: 'message_created',
+        chatId: 1,
+        userMessageId: 10,
+        assistantMessageId: 11,
+        runId: 'run_1',
+      })
+      onEvent({
+        type: 'message_delta',
+        messageId: 11,
+        text: 'Hi there',
+      })
+      onEvent({
+        type: 'message_completed',
+        messageId: 11,
+        finishReason: 'stop',
+      })
+    })
+
+    await service.sendMessage('hello')
+
+    expect(service.snapshot.messages).toEqual([
+      expect.objectContaining({
+        id: 10,
+        role: 'user',
+        content: 'hello',
+      }),
+      expect.objectContaining({
+        id: 11,
+        role: 'assistant',
+        content: 'Hi there',
+        status: 'completed',
+        run_id: 'run_1',
+      }),
+    ])
   })
 
   it('appends message deltas and finalizes the assistant message', () => {
