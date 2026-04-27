@@ -51,14 +51,24 @@ export const routes: Routes = [
       {
         path: 'chats',
         component: ChatsComponent,
+        canActivate: [PermissionsGuard],
         data: {
+          requiredPermission: {
+            action: PermissionAction.View,
+            type: PermissionType.Chat,
+          },
           componentName: 'ChatsComponent',
         },
       },
       {
         path: 'chats/:id',
         component: ChatDetailComponent,
+        canActivate: [PermissionsGuard],
         data: {
+          requiredPermission: {
+            action: PermissionAction.View,
+            type: PermissionType.Chat,
+          },
           componentName: 'ChatDetailComponent',
         },
       },

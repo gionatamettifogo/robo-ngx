@@ -11,6 +11,7 @@ export enum PermissionAction {
 
 export enum PermissionType {
   Document = '%s_document',
+  Chat = '%s_chat',
   Tag = '%s_tag',
   Correspondent = '%s_correspondent',
   DocumentType = '%s_documenttype',

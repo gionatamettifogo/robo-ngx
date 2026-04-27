@@ -172,7 +172,8 @@
           </ul>
         </div>
 
-        <div class="nav-group mt-3 mb-1">
+        <div class="nav-group mt-3 mb-1"
+          *pngxIfPermissions="{ action: PermissionAction.View, type: PermissionType.Chat }">
           <!-- ROBO: custom sidebar group kept separate to reduce upstream merge conflicts. -->
           <h6 class="sidebar-heading px-3 text-muted">
             <span>AI</span>
