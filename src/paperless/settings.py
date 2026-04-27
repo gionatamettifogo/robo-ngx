@@ -383,7 +383,7 @@ MIDDLEWARE = [
 
 # Optional to enable compression
 if __get_boolean("PAPERLESS_ENABLE_COMPRESSION", "yes"):  # pragma: no cover
-    MIDDLEWARE.insert(0, "compression_middleware.middleware.CompressionMiddleware")
+    MIDDLEWARE.insert(0, "paperless.middleware.StreamingSafeCompressionMiddleware")
 
 ROOT_URLCONF = "paperless.urls"
 

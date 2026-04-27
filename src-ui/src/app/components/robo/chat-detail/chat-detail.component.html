@@ -31,7 +31,7 @@
       <div *ngIf="state.loading" class="text-muted mb-3" i18n="Robo|Chat detail loading state">Loading conversation...</div>
       <div *ngIf="state.error" class="alert alert-danger py-2">{{ state.error }}</div>
 
-      <div *ngIf="state.messages.length === 0" class="text-muted" i18n="Robo|Empty chat detail state">
+      <div *ngIf="state.messages.length === 0 && !state.activeStream?.isStreaming" class="text-muted" i18n="Robo|Empty chat detail state">
         No messages yet.
       </div>
 

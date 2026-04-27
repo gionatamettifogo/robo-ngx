@@ -1654,7 +1654,7 @@ class ChatViewSet(ModelViewSet, PassUserMixin):
             streaming_content=event_iter(),
             content_type="application/x-ndjson",
         )
-        response["Cache-Control"] = "no-cache"
+        response["Cache-Control"] = "no-cache, no-transform"
         response["X-Accel-Buffering"] = "no"
         # Compression middleware buffered NDJSON chunks in the browser path.
         # Mark this response as identity-encoded so the stream flushes progressively.
