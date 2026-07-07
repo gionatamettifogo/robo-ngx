@@ -150,7 +150,7 @@ export class AppFrameComponent
   }
 
   get versionString(): string {
-    return `Robo-ngx v${this.settingsService.get(SETTINGS_KEYS.VERSION)}${environment.tag === 'prod' ? '' : ` #${environment.tag}`}`
+    return `Robo-ngx v${this.settingsService.get(SETTINGS_KEYS.VERSION)}`
   }
 
   get customAppTitle(): string {
