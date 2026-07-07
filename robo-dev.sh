@@ -20,18 +20,25 @@ if [[ -z "${NVM_DIR:-}" ]]; then
 	export NVM_DIR="$HOME/.nvm"
 fi
 
-if [[ ! -s "$NVM_DIR/nvm.sh" ]]; then
-	echo "nvm was not found at $NVM_DIR/nvm.sh." >&2
-	exit 1
+if [[ -s "$NVM_DIR/nvm.sh" ]]; then
+	# shellcheck source=/dev/null
+	. "$NVM_DIR/nvm.sh"
+	nvm use 20 >/dev/null
+else
+	if command -v node >/dev/null 2>&1 && command -v pnpm >/dev/null 2>&1; then
+		NODE_VERSION=$(node --version 2>/dev/null || true)
+		echo "nvm was not found at $NVM_DIR/nvm.sh; using system Node.js $NODE_VERSION and pnpm."
+	else
+		echo "nvm was not found at $NVM_DIR/nvm.sh and system node/pnpm are not available." >&2
+		exit 1
+	fi
 fi
 
-# shellcheck source=/dev/null
-. "$NVM_DIR/nvm.sh"
-nvm use 20 >/dev/null
-
 declare -a PIDS=()
-BACKEND_PORT=4201
-FRONTEND_PORT=4200
+BACKEND_PORT="${ROBO_BACKEND_PORT:-4201}"
+FRONTEND_PORT="${ROBO_FRONTEND_PORT:-4200}"
+FRONTEND_HOST="${ROBO_FRONTEND_HOST:-127.0.0.1}"
+NODE_OPTIONS_VALUE="${ROBO_FRONTEND_NODE_OPTIONS:---max-old-space-size=4096}"
 
 port_in_use() {
 	local port=$1
@@ -92,6 +99,6 @@ echo
 start_process backend bash -lc "cd src && exec ../.venv/bin/python manage.py runserver \"$BACKEND_PORT\""
 start_process consumer bash -lc "cd src && exec ../.venv/bin/python manage.py document_consumer"
 start_process worker bash -lc "cd src && exec \"$CELERY_BIN\" --app paperless worker -l INFO"
-start_process frontend bash -lc "cd src-ui && exec pnpm exec ng serve --port \"$FRONTEND_PORT\""
+start_process frontend bash -lc "cd src-ui && export NODE_OPTIONS=\"$NODE_OPTIONS_VALUE\" && exec pnpm exec ng serve --host \"$FRONTEND_HOST\" --port \"$FRONTEND_PORT\""
 
 wait -n "${PIDS[@]}"

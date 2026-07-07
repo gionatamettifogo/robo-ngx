@@ -413,7 +413,6 @@ class TestPaperlessURLSettings(TestCase):
             self.assertIn(url, settings.CSRF_TRUSTED_ORIGINS)
             self.assertIn(url, settings.CORS_ALLOWED_ORIGINS)
 
-
 class TestPathSettings(TestCase):
     def test_default_paths(self):
         """

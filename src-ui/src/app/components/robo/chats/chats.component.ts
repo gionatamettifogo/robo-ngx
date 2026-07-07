@@ -201,7 +201,6 @@ export class ChatsComponent implements OnInit {
           title: this.buildChatTitle(trimmedPrompt),
           archived: false,
           pinned: false,
-          agent_id: 'indena-legal',
         } as Chat)
       )
 
