@@ -17,7 +17,7 @@ import {
 } from '@ng-bootstrap/ng-bootstrap'
 import { NgxBootstrapIconsModule } from 'ngx-bootstrap-icons'
 import { TourNgBootstrapModule } from 'ngx-ui-tour-ng-bootstrap'
-import { Observable } from 'rxjs'
+import { firstValueFrom, Observable } from 'rxjs'
 import { first } from 'rxjs/operators'
 import { Document } from 'src/app/data/document'
 import { SavedView } from 'src/app/data/saved-view'
@@ -40,6 +40,7 @@ import {
   RemoteVersionService,
 } from 'src/app/services/rest/remote-version.service'
 import { SavedViewService } from 'src/app/services/rest/saved-view.service'
+import { ProfileService } from 'src/app/services/profile.service'
 import { SettingsService } from 'src/app/services/settings.service'
 import { TasksService } from 'src/app/services/tasks.service'
 import { ToastService } from 'src/app/services/toast.service'
@@ -74,11 +75,15 @@ export class AppFrameComponent
   extends ComponentWithPermissions
   implements OnInit, ComponentCanDeactivate
 {
+  private static readonly CHAT_SIGNIN_URL =
+    'https://chat.seratonin.it/api/signin'
+
   router = inject(Router)
   private activatedRoute = inject(ActivatedRoute)
   private openDocumentsService = inject(OpenDocumentsService)
   savedViewService = inject(SavedViewService)
   private remoteVersionService = inject(RemoteVersionService)
+  private profileService = inject(ProfileService)
   settingsService = inject(SettingsService)
   tasksService = inject(TasksService)
   private readonly toastService = inject(ToastService)
@@ -145,7 +150,7 @@ export class AppFrameComponent
   }
 
   get versionString(): string {
-    return `${environment.appTitle} v${this.settingsService.get(SETTINGS_KEYS.VERSION)}${environment.tag === 'prod' ? '' : ` #${environment.tag}`}`
+    return `Robo-ngx v${this.settingsService.get(SETTINGS_KEYS.VERSION)}${environment.tag === 'prod' ? '' : ` #${environment.tag}`}`
   }
 
   get customAppTitle(): string {
@@ -186,6 +191,31 @@ export class AppFrameComponent
 
   closeMenu() {
     this.isMenuCollapsed = true
+  }
+
+  async openChat(event?: Event): Promise<void> {
+    event?.preventDefault()
+
+    try {
+      const profile = await firstValueFrom(this.profileService.get())
+      const paperlessToken =
+        profile.auth_token?.trim() ||
+        (await firstValueFrom(this.profileService.generateAuthToken())).trim()
+
+      if (!paperlessToken) {
+        throw new Error('No Paperless auth token is available.')
+      }
+
+      this.submitChatSigninForm({
+        paperlessUrl: this.getPaperlessUrl(),
+        paperlessToken,
+      })
+    } catch (error) {
+      this.toastService.showError(
+        $localize`Unable to open chat with your Paperless credentials.`,
+        error
+      )
+    }
   }
 
   editProfile() {
@@ -304,5 +334,31 @@ export class AppFrameComponent
       this.settingsService.get(SETTINGS_KEYS.SIDEBAR_VIEWS_SHOW_COUNT) &&
       !this.settingsService.organizingSidebarSavedViews
     )
+  }
+
+  private getPaperlessUrl(): string {
+    return new URL(environment.apiBaseUrl, window.location.origin).origin
+  }
+
+  private submitChatSigninForm(credentials: {
+    paperlessUrl: string
+    paperlessToken: string
+  }): void {
+    const form = document.createElement('form')
+    form.method = 'POST'
+    form.action = AppFrameComponent.CHAT_SIGNIN_URL
+    form.style.display = 'none'
+
+    for (const [name, value] of Object.entries(credentials)) {
+      const input = document.createElement('input')
+      input.type = 'hidden'
+      input.name = name
+      input.value = value
+      form.appendChild(input)
+    }
+
+    document.body.appendChild(form)
+    form.submit()
+    form.remove()
   }
 }

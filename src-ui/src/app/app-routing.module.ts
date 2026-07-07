@@ -21,8 +21,6 @@ import { TagListComponent } from './components/manage/tag-list/tag-list.componen
 import { WorkflowsComponent } from './components/manage/workflows/workflows.component'
 import { NotFoundComponent } from './components/not-found/not-found.component'
 import { AgentsComponent } from './components/robo/agents/agents.component'
-import { ChatDetailComponent } from './components/robo/chat-detail/chat-detail.component'
-import { ChatsComponent } from './components/robo/chats/chats.component'
 import { SkillsComponent } from './components/robo/skills/skills.component'
 import { DirtyDocGuard } from './guards/dirty-doc.guard'
 import { DirtyFormGuard } from './guards/dirty-form.guard'
@@ -45,31 +43,6 @@ export const routes: Routes = [
         component: DashboardComponent,
         data: {
           componentName: 'AppFrameComponent',
-        },
-      },
-      // ROBO: custom sidebar destinations kept isolated for easier upstream merges.
-      {
-        path: 'chats',
-        component: ChatsComponent,
-        canActivate: [PermissionsGuard],
-        data: {
-          requiredPermission: {
-            action: PermissionAction.View,
-            type: PermissionType.Chat,
-          },
-          componentName: 'ChatsComponent',
-        },
-      },
-      {
-        path: 'chats/:id',
-        component: ChatDetailComponent,
-        canActivate: [PermissionsGuard],
-        data: {
-          requiredPermission: {
-            action: PermissionAction.View,
-            type: PermissionType.Chat,
-          },
-          componentName: 'ChatDetailComponent',
         },
       },
       {

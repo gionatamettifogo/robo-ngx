@@ -28,6 +28,7 @@ import {
 } from 'src/app/services/django-messages.service'
 import { OpenDocumentsService } from 'src/app/services/open-documents.service'
 import { PermissionsService } from 'src/app/services/permissions.service'
+import { ProfileService } from 'src/app/services/profile.service'
 import { RemoteVersionService } from 'src/app/services/rest/remote-version.service'
 import { SavedViewService } from 'src/app/services/rest/saved-view.service'
 import { SearchService } from 'src/app/services/rest/search.service'
@@ -90,6 +91,7 @@ describe('AppFrameComponent', () => {
   let messagesService: DjangoMessagesService
   let openDocumentsService: OpenDocumentsService
   let router: Router
+  let profileService: ProfileService
   let savedViewSpy
   let modalService: NgbModal
   let maybeRefreshSpy
@@ -167,6 +169,7 @@ describe('AppFrameComponent', () => {
     toastService = TestBed.inject(ToastService)
     messagesService = TestBed.inject(DjangoMessagesService)
     openDocumentsService = TestBed.inject(OpenDocumentsService)
+    profileService = TestBed.inject(ProfileService)
     modalService = TestBed.inject(NgbModal)
     router = TestBed.inject(Router)
 
@@ -370,5 +373,47 @@ describe('AppFrameComponent', () => {
 
   it('should call maybeRefreshDocumentCounts after saved views reload', () => {
     expect(maybeRefreshSpy).toHaveBeenCalled()
+  })
+
+  it('should post current Paperless credentials to chat.seratonin.it', async () => {
+    jest.spyOn(profileService, 'get').mockReturnValue(
+      of({
+        auth_token: 'paperless-token',
+      })
+    )
+    const submitSpy = jest.spyOn(component as any, 'submitChatSigninForm')
+
+    await component.openChat()
+
+    expect(submitSpy).toHaveBeenCalledWith({
+      paperlessUrl: new URL(environment.apiBaseUrl).origin,
+      paperlessToken: 'paperless-token',
+    })
+  })
+
+  it('should generate a token before opening chat when missing from the profile', async () => {
+    jest.spyOn(profileService, 'get').mockReturnValue(of({}))
+    jest
+      .spyOn(profileService, 'generateAuthToken')
+      .mockReturnValue(of('generated-token'))
+    const submitSpy = jest.spyOn(component as any, 'submitChatSigninForm')
+
+    await component.openChat()
+
+    expect(submitSpy).toHaveBeenCalledWith({
+      paperlessUrl: new URL(environment.apiBaseUrl).origin,
+      paperlessToken: 'generated-token',
+    })
+  })
+
+  it('should show an error if chat sign-in preparation fails', async () => {
+    jest
+      .spyOn(profileService, 'get')
+      .mockReturnValue(throwError(() => new Error('boom')))
+    const toastSpy = jest.spyOn(toastService, 'showError')
+
+    await component.openChat()
+
+    expect(toastSpy).toHaveBeenCalled()
   })
 })

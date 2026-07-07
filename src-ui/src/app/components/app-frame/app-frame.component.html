@@ -180,7 +180,7 @@
           </h6>
           <ul class="nav flex-column mb-2">
             <li class="nav-item app-link">
-              <a class="nav-link" routerLink="chats" routerLinkActive="active" (click)="closeMenu()" ngbPopover="Chats"
+              <a class="nav-link" href="https://chat.seratonin.it/app/signin" (click)="openChat($event); closeMenu()" ngbPopover="Chats"
                 [disablePopover]="!slimSidebarEnabled" placement="end" container="body" triggers="mouseenter:mouseleave"
                 popoverClass="popover-slim">
                 <i-bs class="me-1" name="chat-right"></i-bs><span>&nbsp;<ng-container>Chats</ng-container></span>
