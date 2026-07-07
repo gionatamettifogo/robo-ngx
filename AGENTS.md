@@ -51,22 +51,46 @@ Environment variables (optional):
 
 ## Building a Docker image
 
+### Version numbering
+
+Ensure version is consistent across all three places:
+- `pyproject.toml` → `version = "2.20.13.NNN"`
+- `src/paperless/version.py` → `__full_version_str__ = "2.20.13.NNN"`
+- `src-ui/src/environments/environment.prod.ts` → `version: '2.20.13.NNN'`
+
+Convention: **NNN = day of the year** (e.g. Jan 1 = .001, Jul 7 ≈ .188). See `pyproject.toml` comment.
+
+### Build steps
+
 ```bash
 cd /home/developer/github/robo-ngx
 
-# Ensure version is consistent across all three places:
-#   pyproject.toml          → version = "2.20.13.NNN"
-#   src/paperless/version.py → __full_version_str__ = "2.20.13.NNN"
-#   src-ui/src/environments/environment.prod.ts → version: '2.20.13.NNN'
-#
-# Convention: NNN = day of the year (e.g. Jan 1 = .001, Jul 7 ≈ .188).
-# See pyproject.toml comment for reference.
+# CRITICAL: clear build cache first — Docker's layer cache silently reuses
+# old frontend builds even with --no-cache on the outer build.
+docker builder prune -af
+docker build --no-cache -t gionata/robo-ngx:2.20.13.NNN .
+```
 
-docker build -t gionata/robo-ngx:2.20.13.NNN .
+**Never pass `--build-arg PNGX_TAG_VERSION=...`** — it bakes the branch name into the frontend tag (e.g. `#feature-robo` in the version string).
+
+**Verify before pushing**: check the compiled JS inside the image:
+```bash
+docker run --rm --entrypoint sh gionata/robo-ngx:2.20.13.NNN \
+  -c "grep -c 'feature-robo' /usr/src/paperless/src/documents/static/frontend/cs-CZ/main.js"
+# Must return 0. If not, the cache wasn't cleared — prune and rebuild.
+```
+
+Then push:
+```bash
 docker push gionata/robo-ngx:2.20.13.NNN
 ```
 
-Do NOT pass `--build-arg PNGX_TAG_VERSION=...` unless you want the frontend tag overridden (it caused `#feature-robo` to appear in the version string before the display logic was fixed).
+### Build pitfalls
+
+- **Frontend cache poisoning**: The `compile-frontend` Docker build stage is cached independently. Even `docker build --no-cache` can reuse old frontend layers if the buildx builder cache wasn't purged. Always `docker builder prune -af` first.
+- **`docker buildx build --no-cache` fails**: The buildx builder has no PTY, so NLTK's downloader hangs with an EOFError. Use plain `docker build --no-cache` instead.
+- **Stale routes in `app-routing.module.ts`**: Removing UI components doesn't auto-remove their routes. Always check and clean up imports + route definitions (e.g. `SkillsComponent`, `AgentsComponent`).
+- **Per-instance app title**: "Indena-ngx" vs "Robo-ngx" is the `APP_TITLE` setting in each instance's database (Settings → App Title), not baked into code.
 
 ## Deploying to idb1 (Indena servers)
 
@@ -76,10 +100,12 @@ The Indena stack lives on idb1 at `/mnt/volume-fsn1-1/github/indena/`.
 # 1. Update the image tag in docker-compose.yaml (both paperless services)
 ssh developer@idb1 "sed -i 's/gionata\/robo-ngx:OLD/gionata\/robo-ngx:NEW/g' /mnt/volume-fsn1-1/github/indena/docker-compose.yaml"
 
-# 2. Pull and redeploy
+# 2. Explicitly pull THEN redeploy — `docker compose up` alone may say "Running"
+# without actually switching to the new image if the local tag already exists.
 ssh developer@idb1 "cd /mnt/volume-fsn1-1/github/indena && docker compose pull indena-batch-paperless indena-legal-paperless && docker compose up -d --remove-orphans indena-batch-paperless indena-legal-paperless"
 
 # 3. Verify health
+sleep 20
 ssh developer@idb1 "docker ps --filter name=indena-batch-paperless --filter name=indena-legal-paperless --format '{{.Names}}\t{{.Image}}\t{{.Status}}'"
 ```
 
