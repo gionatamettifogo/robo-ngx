@@ -85,6 +85,26 @@ Then push:
 docker push gionata/robo-ngx:2.20.13.NNN
 ```
 
+### Tagging and releasing (GitHub)
+
+Create an annotated tag and push it alongside the branch:
+```bash
+git tag -a v2.20.13.NNN -m 'Release 2.20.13.NNN
+
+- Brief bullet-point changelog
+- Link to Docker image: gionata/robo-ngx:2.20.13.NNN'
+git push origin feature-robo --tags
+```
+
+Then create a GitHub Release (uses the tag's message as the release notes):
+```bash
+gh release create v2.20.13.NNN --repo gionatamettifogo/robo-ngx \
+  --title "v2.20.13.NNN" --target feature-robo \
+  --notes "$(git tag -l v2.20.13.NNN --format='%(contents:subject)%n%n%(contents:body)')"
+```
+
+**Always use `--repo gionatamettifogo/robo-ngx`** — `gh` defaults to the `upstream` remote (paperless-ngx/paperless-ngx) which will 404.
+
 ### Build pitfalls
 
 - **Frontend cache poisoning**: The `compile-frontend` Docker build stage is cached independently. Even `docker build --no-cache` can reuse old frontend layers if the buildx builder cache wasn't purged. Always `docker builder prune -af` first.
@@ -128,3 +148,7 @@ Frontend tests live under `src-ui/` and run via:
 ```bash
 cd src-ui && CI=true pnpm exec ng test --watch=false
 ```
+
+## Project journal
+
+Maintain `JOURNAL.md` as a concise record of substantial project work. Add or revise an entry when implementation, debugging, deployment, or architectural work produces useful project history. Start each entry with a `YYYY-MM-DD` heading followed by short `- ` recap lines. Do not use checklists, command transcripts, file inventories, or detailed technical notes.

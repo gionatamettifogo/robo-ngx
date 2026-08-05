@@ -292,7 +292,6 @@ MODEL_FILE = __get_path(
 # ROBO settings for AI chats and agents
 AI_API_URL = os.getenv("PAPERLESS_AI_API_URL", "http://127.0.0.1:8000/v1")
 AI_API_KEY = os.getenv("PAPERLESS_AI_API_KEY", "")
-AI_MODEL = os.getenv("PAPERLESS_AI_MODEL", "default")
 
 LOGGING_DIR = __get_path("PAPERLESS_LOGGING_DIR", DATA_DIR / "log")
 
