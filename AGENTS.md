@@ -15,6 +15,7 @@ A fork of [paperless-ngx](https://github.com/paperless-ngx/paperless-ngx) that a
 ## Branch
 
 Active development branch: **`feature-robo`** (pushed to `origin/feature-robo`).
+The external Chats-link work and the current cleanup are maintained on this branch; do not move them to `main` unless explicitly preparing a release.
 
 ## Local development (seratonin)
 
